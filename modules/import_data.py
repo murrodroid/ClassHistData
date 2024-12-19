@@ -40,4 +40,6 @@ def import_data():
         heiberg_code=lambda df: [heiberg.get(dk, np.nan) for dk in df['dk1875_code']]
     )
 
-    return df
+    train_df = df[df.icd10h_code.notna()]
+
+    return train_df, df
