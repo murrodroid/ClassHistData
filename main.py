@@ -12,6 +12,7 @@ from modules.training import train_model
 learning_rate = 0.001
 batch_size = 32
 num_epochs = 32
+dropout_rate = 0.2
 ####
 
 
@@ -28,7 +29,7 @@ test_loader = DataLoader(TensorDataset(X_test, y_test), batch_size=32, shuffle=F
 vocab_size = len(vocab)
 output_dim = train_df['icd10h_code'].nunique()
 
-model = network_qpidgram(input_dim=vocab_size, len_output=output_dim)
+model = network_qpidgram(input_dim=vocab_size, len_output=output_dim, dropout_rate=dropout_rate)
 
 criterion = nn.CrossEntropyLoss()
 optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
