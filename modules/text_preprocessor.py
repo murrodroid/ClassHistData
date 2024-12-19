@@ -176,7 +176,12 @@ def train_test_split_tensors(X, y, test_size=0.2, random_state=42):
     train_samples = total_samples - test_samples
     
     torch.manual_seed(random_state)
-    X_train, X_test = random_split(X, [train_samples, test_samples])
-    y_train, y_test = random_split(y, [train_samples, test_samples])
+    indices = torch.randperm(total_samples)
+    
+    train_indices = indices[:train_samples]
+    test_indices = indices[train_samples:]
+    
+    X_train, X_test = X[train_indices], X[test_indices]
+    y_train, y_test = y[train_indices], y[test_indices]
     
     return X_train, X_test, y_train, y_test
