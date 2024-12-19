@@ -7,6 +7,14 @@ from modules.text_preprocessor import *
 from modules.networks import network_qpidgram
 from modules.training import train_model
 
+
+#### hyper-parameters
+learning_rate = 0.001
+batch_size = 32
+num_epochs = 32
+####
+
+
 train_df,full_df = import_data()
 
 X_tensor,vocab = prepare_combined_tensors(train_df,column='tidy_cod')
@@ -22,11 +30,7 @@ output_dim = train_df['icd10h_code'].nunique()
 
 model = network_qpidgram(input_dim=vocab_size, len_output=output_dim)
 
-learning_rate = 0.001
-batch_size = 32
-num_epochs = 32
-
 criterion = nn.CrossEntropyLoss()
 optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
 
-train_model(model, train_loader, criterion, optimizer, num_epochs=num_epochs)
+train_model(model, train_loader, test_loader, criterion, optimizer, num_epochs=num_epochs)
