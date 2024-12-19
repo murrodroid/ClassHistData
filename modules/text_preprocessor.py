@@ -4,6 +4,9 @@ import torch
 from sklearn.preprocessing import LabelEncoder
 import pandas as pd
 from typing import Literal
+from torch.utils.data import DataLoader, TensorDataset, random_split
+import torch
+import torch.nn as nn
 
 def get_word_grams(text: str, n: int, lower: bool = True, strip: bool = True) -> list:
     """Generates n-grams from words in the given text string.
@@ -154,3 +157,26 @@ def prepare_combined_tensors(df: pd.DataFrame, column: str) -> tuple:
     
     combined_tensors = torch.cat(all_tensors, dim=1)
     return combined_tensors, combined_vocabs
+
+def train_test_split_tensors(X, y, test_size=0.2, random_state=42):
+    """
+    Splits the input and label tensors into training and test sets.
+    
+    Args:
+        X (torch.Tensor): Combined input tensor.
+        y (torch.Tensor): Encoded target labels.
+        test_size (float): The proportion of the dataset to include in the test split.
+        random_state (int): Random seed for reproducibility.
+    
+    Returns:
+        tuple: (X_train, X_test, y_train, y_test)
+    """
+    total_samples = X.size(0)
+    test_samples = int(total_samples * test_size)
+    train_samples = total_samples - test_samples
+    
+    torch.manual_seed(random_state)
+    X_train, X_test = random_split(X, [train_samples, test_samples])
+    y_train, y_test = random_split(y, [train_samples, test_samples])
+    
+    return X_train, X_test, y_train, y_test
