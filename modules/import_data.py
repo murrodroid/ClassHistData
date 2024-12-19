@@ -8,11 +8,11 @@ def import_data():
     Returns:
         pd.DataFrame: DataFrame containing columns from the source files along with additional processed columns.
     """
-    path1 = './datasets/louise_icd10h_edited.xlsx'
-    path2 = './datasets/CHILDCAT 032024.xlsx'
-    path3 = './datasets/INFANTCAT 082024.xlsx'
-    path4 = './datasets/HISTCAT 082024.xlsx'
-    path5 = './datasets/heiberg.xlsx'
+    path1 = '../datasets/louise_icd10h_edited.xlsx'
+    path2 = '../datasets/CHILDCAT 032024.xlsx'
+    path3 = '../datasets/INFANTCAT 082024.xlsx'
+    path4 = '../datasets/HISTCAT 082024.xlsx'
+    path5 = '../datasets/heiberg.xlsx'
 
     icd_df = pd.read_excel(path1)
     icd_df.columns = icd_df.columns.str.lower().str.replace(' ', '')
