@@ -9,15 +9,15 @@ from modules.training import train_model
 
 
 #### hyper-parameters
-learning_rate = 0.001
+learning_rate = 0.0008
 batch_size = 32
 num_epochs = 64
-dropout_rate = 0.2
+dropout_rate = 0.34
 ####
 
 token_types = [
-        {'method': 'char', 'ngram': 1, 'name': 'char_unigram'},
-        {'method': 'char', 'ngram': 2, 'name': 'char_bigram'},
+        #{'method': 'char', 'ngram': 1, 'name': 'char_unigram'},
+        #{'method': 'char', 'ngram': 2, 'name': 'char_bigram'},
         {'method': 'char', 'ngram': 3, 'name': 'char_trigram'},
         {'method': 'word', 'ngram': 0, 'name': 'word_gram'}
     ]
