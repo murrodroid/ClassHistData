@@ -15,17 +15,15 @@ num_epochs = 64
 dropout_rate = 0.2
 ####
 
-
-train_df,full_df = import_data()
-
-
 token_types = [
         {'method': 'char', 'ngram': 1, 'name': 'char_unigram'},
         {'method': 'char', 'ngram': 2, 'name': 'char_bigram'},
         {'method': 'char', 'ngram': 3, 'name': 'char_trigram'},
         {'method': 'word', 'ngram': 0, 'name': 'word_gram'}
     ]
-X_tensor,vocab = prepare_combined_tensors(train_df,column='tidy_cod')
+
+train_df,full_df = import_data()
+X_tensor,vocab = prepare_combined_tensors(train_df,column='tidy_cod',token_types=token_types)
 y_tensor, label_encoder = encode_labels(train_df, column='icd10h_code')
 
 X_train, X_test, y_train, y_test = train_test_split_tensors(X_tensor, y_tensor)
