@@ -117,23 +117,17 @@ def print_model_parameters(df: pd.DataFrame, char_vocab: dict, word_vocab: dict,
     print("Word Vocab Size:", len(word_vocab))
     print("Number of Output Classes:", len(label_encoder.classes_))
 
-def prepare_combined_tensors(df: pd.DataFrame, column: str) -> tuple:
-    """Prepares combined tensors for unigrams, bigrams, trigrams, and word grams from a DataFrame column.
+def prepare_combined_tensors(df: pd.DataFrame, column: str, token_types: list[dict]) -> tuple:
+    """Prepares combined tensors for specified token types from a DataFrame column.
     
     Args:
         df (pd.DataFrame): The input DataFrame.
         column (str): The name of the column to tokenize and prepare tensors for.
+        token_types (list[dict]): A list of token types, each with 'method', 'ngram', and 'name' keys.
     
     Returns:
         tuple: A combined tensor of tokenized sequences and the combined vocabulary.
     """
-    token_types = [
-        {'method': 'char', 'ngram': 1, 'name': 'char_unigram'},
-        {'method': 'char', 'ngram': 2, 'name': 'char_bigram'},
-        {'method': 'char', 'ngram': 3, 'name': 'char_trigram'},
-        {'method': 'word', 'ngram': 0, 'name': 'word_gram'}
-    ]
-    
     combined_vocabs = {}
     for token_type in token_types:
         column_name = f"{token_type['name']}_tokenized"
@@ -148,7 +142,7 @@ def prepare_combined_tensors(df: pd.DataFrame, column: str) -> tuple:
         combined_vocabs.update(vocab)
         
         df = df.assign(**{column_name: df[tokenized_column].apply(lambda x: [combined_vocabs[token] for token in x])})
-    
+
     all_tensors = []
     for token_type in token_types:
         tokenized_col = f"{token_type['name']}_tokenized"

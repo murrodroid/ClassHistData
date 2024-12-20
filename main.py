@@ -11,13 +11,20 @@ from modules.training import train_model
 #### hyper-parameters
 learning_rate = 0.001
 batch_size = 32
-num_epochs = 32
+num_epochs = 64
 dropout_rate = 0.2
 ####
 
 
 train_df,full_df = import_data()
 
+
+token_types = [
+        {'method': 'char', 'ngram': 1, 'name': 'char_unigram'},
+        {'method': 'char', 'ngram': 2, 'name': 'char_bigram'},
+        {'method': 'char', 'ngram': 3, 'name': 'char_trigram'},
+        {'method': 'word', 'ngram': 0, 'name': 'word_gram'}
+    ]
 X_tensor,vocab = prepare_combined_tensors(train_df,column='tidy_cod')
 y_tensor, label_encoder = encode_labels(train_df, column='icd10h_code')
 
