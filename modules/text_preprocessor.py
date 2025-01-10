@@ -123,16 +123,19 @@ def prepare_combined_tensors(df: pd.DataFrame, column: str, token_types: list[di
     Args:
         df (pd.DataFrame): The input DataFrame.
         column (str): The name of the column to tokenize and prepare tensors for.
-        token_types (list[dict]): A list of token types, each with 'method', 'ngram', and 'name' keys.
+        token_types (list[dict]): A list of token types, each with 'method' and 'ngram' keys.
     
     Returns:
         tuple: A combined tensor of tokenized sequences and the combined vocabulary.
     """
     combined_vocabs = {}
     for token_type in token_types:
-        column_name = f"{token_type['name']}_tokenized"
+        # Dynamically derive name
+        token_type_name = f"{token_type['method']}_{token_type['ngram']}gram" if token_type['ngram'] > 0 else f"{token_type['method']}_tokenized"
+        column_name = f"{token_type_name}_tokenized"
+        
         df = tokenize(df, column=column, method=token_type['method'], ngram=token_type['ngram'])
-        tokenized_column = f"{column}_{token_type['method']}_{token_type['ngram']}gram" if token_type['ngram'] > 0 else f'{column}_tokenized'
+        tokenized_column = f"{column}_{token_type['method']}_{token_type['ngram']}gram" if token_type['ngram'] > 0 else f"{column}_tokenized"
         
         all_tokens = set()
         for token_list in df[tokenized_column]:
@@ -145,7 +148,8 @@ def prepare_combined_tensors(df: pd.DataFrame, column: str, token_types: list[di
 
     all_tensors = []
     for token_type in token_types:
-        tokenized_col = f"{token_type['name']}_tokenized"
+        token_type_name = f"{token_type['method']}_{token_type['ngram']}gram" if token_type['ngram'] > 0 else f"{token_type['method']}_tokenized"
+        tokenized_col = f"{token_type_name}_tokenized"
         tensor = prepare_tensors(df, column=tokenized_col)
         all_tensors.append(tensor)
     

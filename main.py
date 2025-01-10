@@ -16,10 +16,10 @@ dropout_rate = 0.34
 ####
 
 token_types = [
-        #{'method': 'char', 'ngram': 1, 'name': 'char_unigram'},
-        #{'method': 'char', 'ngram': 2, 'name': 'char_bigram'},
-        {'method': 'char', 'ngram': 3, 'name': 'char_trigram'},
-        {'method': 'word', 'ngram': 0, 'name': 'word_gram'}
+        #{'method': 'char', 'ngram': 1},
+        #{'method': 'char', 'ngram': 2},
+        {'method': 'char', 'ngram': 3},
+        {'method': 'word', 'ngram': 0}
     ]
 
 train_df,full_df = import_data()
