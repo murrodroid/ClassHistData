@@ -46,11 +46,9 @@ def import_data_individualized():
         heiberg = [heiberg.get(dk, np.nan) for dk in persons['dk1875']]
     )
     
-    # val_sample = persons.sample(n=round(persons.shape[0]*0.002),random_state=333)
     df = persons[['deathcause_mono','deathcauses','age','sex','hood','yearOfDeath','icd10h','dk1875','childcat','infantcat','histcat','heiberg']]
-    train_df = persons[persons.icd10h.notna()]
 
-    return train_df, df, persons
+    return df, persons
 
 def import_data_standard():
     """
