@@ -2,7 +2,7 @@
 import torch
 import torch.nn as nn
 # modules
-from modules.import_data import import_data
+from modules.import_data import import_data_standard
 from modules.text_preprocessor import *
 from modules.networks import network_qpidgram
 from modules.training import train_model
@@ -22,7 +22,7 @@ token_types = [
         {'method': 'word', 'ngram': 0}
     ]
 
-train_df,full_df = import_data()
+train_df,full_df = import_data_standard()
 X_tensor,vocab = prepare_combined_tensors(train_df,column='tidy_cod',token_types=token_types)
 y_tensor, label_encoder = encode_labels(train_df, column='icd10h_code')
 
