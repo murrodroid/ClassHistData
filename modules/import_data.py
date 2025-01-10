@@ -1,19 +1,35 @@
 import pandas as pd
 import numpy as np
+from modules.tools import remove_text_after_comma
 
-def import_data():
+path1 = './datasets/louise_icd10h_edited.xlsx'
+path2 = './datasets/CHILDCAT 032024.xlsx'
+path3 = './datasets/INFANTCAT 082024.xlsx'
+path4 = './datasets/HISTCAT 082024.xlsx'
+path5 = './datasets/heiberg.xlsx'
+path6 = './datasets/KBHBegravelser_1861-1940_cleaned.csv'
+
+
+def import_data_individualized():
+    persons = pd.read_csv(path6,sep='$')
+    persons['age'] = persons['ageYears'].fillna(0) + persons['ageMonth'].fillna(0)/12 + persons['ageWeeks'].fillna(0)/52 + persons['ageDays'].fillna(0)/365.25 + persons['ageHours'].fillna(0)/8765.81277
+    persons['dateOfDeath'] = pd.to_datetime(persons['dateOfDeath'])
+    persons['yearOfDeath'] = persons['dateOfDeath'].dt.year
+    persons['sex'] = [np.nan if x == 'Ukendt' else x for x in persons['sex']]
+    persons['deathcauses'] = persons['deathcauses'].astype(str).str.lower()
+    persons['deathcause_mono'] = persons['deathcauses'].apply(remove_text_after_comma)
+
+
+
+
+
+def import_data_standard():
     """
     Imports and processes data from multiple Excel files to create a consolidated DataFrame.
 
     Returns:
         pd.DataFrame: DataFrame containing columns from the source files along with additional processed columns.
     """
-    path1 = './datasets/louise_icd10h_edited.xlsx'
-    path2 = './datasets/CHILDCAT 032024.xlsx'
-    path3 = './datasets/INFANTCAT 082024.xlsx'
-    path4 = './datasets/HISTCAT 082024.xlsx'
-    path5 = './datasets/heiberg.xlsx'
-
     icd_df = pd.read_excel(path1)
     icd_df.columns = icd_df.columns.str.lower().str.replace(' ', '')
 
