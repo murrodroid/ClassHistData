@@ -71,7 +71,7 @@ def tokenize(df: pd.DataFrame, column: str, method: Literal['char', 'word'], ngr
             df = df.assign(**{f'{column}_tokenized': df[column].apply(lambda x: [word_tokenize[word] for word in x.split()])})
     return df
 
-def prepare_tensors(df: pd.DataFrame, column: str) -> torch.Tensor:
+def prepare_df_tensors(df: pd.DataFrame, column: str) -> torch.Tensor:
     """Prepares padded tensors from tokenized sequences.
     
     Args:
@@ -150,36 +150,61 @@ def prepare_combined_tensors(df: pd.DataFrame, column: str, token_types: list[di
     for token_type in token_types:
         token_type_name = f"{token_type['method']}_{token_type['ngram']}gram" if token_type['ngram'] > 0 else f"{token_type['method']}_tokenized"
         tokenized_col = f"{token_type_name}_tokenized"
-        tensor = prepare_tensors(df, column=tokenized_col)
+        tensor = prepare_df_tensors(df, column=tokenized_col)
         all_tensors.append(tensor)
     
     combined_tensors = torch.cat(all_tensors, dim=1)
     return combined_tensors, combined_vocabs
 
-def train_test_split_tensors(X, y, test_size=0.2, random_state=42):
+def train_test_split_tensors(*X, y, test_size=0.2, random_state=42):
     """
-    Splits the input and label tensors into training and test sets.
-    
+    Splits any number of input tensors (X1, X2, ...) plus a label tensor (y)
+    into training and test sets, using the same random split.
+
     Args:
-        X (torch.Tensor): Combined input tensor.
-        y (torch.Tensor): Encoded target labels.
-        test_size (float): The proportion of the dataset to include in the test split.
+        *X (torch.Tensor): One or more input tensors to be split.
+        y (torch.Tensor): Label/target tensor to be split.
+        test_size (float): Proportion of the dataset to include in the test split.
         random_state (int): Random seed for reproducibility.
-    
+
     Returns:
-        tuple: (X_train, X_test, y_train, y_test)
+        tuple of torch.Tensor: The returned tuple will contain the train-test split 
+        for all provided tensors, in the order they were passed in, followed by y.
+
+        Example (one X):
+            X_train, X_test, y_train, y_test
+
+        Example (two X's):
+            X1_train, X1_test, X2_train, X2_test, y_train, y_test
     """
-    total_samples = X.size(0)
-    test_samples = int(total_samples * test_size)
-    train_samples = total_samples - test_samples
-    
+    # Put all tensors (X plus y) in a single list for consistent splitting
+    all_tensors = list(X) + [y]
+
+    # Basic checks
+    if not all_tensors:
+        raise ValueError("No tensors were provided.")
+
+    # Ensure all tensors have the same number of samples in the first dimension
+    n_samples = all_tensors[0].size(0)
+    for t in all_tensors:
+        if t.size(0) != n_samples:
+            raise ValueError("All tensors must have the same number of samples in the first dimension.")
+
+    # Determine how many go into train vs test
+    test_samples = int(n_samples * test_size)
+    train_samples = n_samples - test_samples
+
+    # Set the random seed and shuffle indices
     torch.manual_seed(random_state)
-    indices = torch.randperm(total_samples)
-    
+    indices = torch.randperm(n_samples)
     train_indices = indices[:train_samples]
     test_indices = indices[train_samples:]
-    
-    X_train, X_test = X[train_indices], X[test_indices]
-    y_train, y_test = y[train_indices], y[test_indices]
-    
-    return X_train, X_test, y_train, y_test
+
+    # Split each tensor accordingly
+    split_results = []
+    for t in all_tensors:
+        split_results.append(t[train_indices])
+        split_results.append(t[test_indices])
+
+    # Return as a tuple so it can be unpacked
+    return tuple(split_results)
