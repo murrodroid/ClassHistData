@@ -1,55 +1,101 @@
 import torch
 
-def train_model(model, train_loader, val_loader, criterion, optimizer, num_epochs=16):
-    """Trains the model and evaluates accuracy on both training and validation sets.
-    
+def train_model(model, train_loader, test_loader, criterion, optimizer, num_epochs=16, device='cpu'):
+    """
+    Trains the model while dynamically adapting to the input format.
+
+    Each batch from the DataLoader is assumed to be a tuple or list where:
+      - The last element is the labels.
+      - All preceding elements are input tensors.
+      
+    This function will call the model accordingly:
+      - For one input: model(input)
+      - For multiple inputs: model(*inputs)
+
     Args:
         model (nn.Module): The neural network model to train.
         train_loader (DataLoader): DataLoader for the training set.
-        val_loader (DataLoader): DataLoader for the validation set.
-        criterion (nn.Module): The loss function.
-        optimizer (torch.optim.Optimizer): The optimizer.
-        num_epochs (int): Number of epochs to train.
-    
+        test_loader (DataLoader): DataLoader for the validation/test set.
+        criterion (nn.Module): Loss function.
+        optimizer (torch.optim.Optimizer): Optimizer.
+        num_epochs (int): Number of epochs.
+        device (str): Device to run the model on ('cuda' or 'cpu').
+
     Returns:
         None
     """
+    model.to(device)
     for epoch in range(num_epochs):
-        # Training phase
         model.train()
-        total_loss = 0
-        correct_predictions = 0
-        total_samples = 0
-        
-        for X_batch, y_batch in train_loader:
+        total_loss = 0.0
+        correct_train = 0
+        total_train = 0
+
+        for batch in train_loader:
+            # Unpack the batch: assume the last element is the labels.
+            if not isinstance(batch, (list, tuple)):
+                raise ValueError("Each batch must be a tuple or list.")
+            if len(batch) < 2:
+                raise ValueError("Each batch must contain at least one input and one label.")
+            
+            # Unpack: all elements except the last are inputs; the last is labels.
+            *inputs, labels = batch
+            
+            # Move labels to device.
+            labels = labels.to(device)
+            # Move inputs to device: if there's one input, it remains a tensor;
+            # if multiple, each tensor is moved to the device.
+            if len(inputs) == 1:
+                inputs = inputs[0].to(device)
+                outputs = model(inputs)
+            else:
+                inputs = [inp.to(device) for inp in inputs]
+                outputs = model(*inputs)
+            
+            # Compute loss and update.
+            loss = criterion(outputs, labels)
             optimizer.zero_grad()
-            output = model(X_batch)
-            loss = criterion(output, y_batch)
             loss.backward()
             optimizer.step()
-            
+
             total_loss += loss.item()
-            predictions = output.argmax(dim=1)
-            correct_predictions += (predictions == y_batch).sum().item()
-            total_samples += y_batch.size(0)
-        
-        train_loss = total_loss / len(train_loader)
-        train_accuracy = correct_predictions / total_samples
-        
-        # Validation phase
+            _, preds = torch.max(outputs, 1)
+            correct_train += (preds == labels).sum().item()
+            total_train += labels.size(0)
+
+        avg_train_loss = total_loss / len(train_loader)
+        train_acc = correct_train / total_train
+
+        # Validation phase.
         model.eval()
-        val_loss = 0
-        val_correct_predictions = 0
-        val_total_samples = 0
+        total_val_loss = 0.0
+        correct_val = 0
+        total_val = 0
         with torch.no_grad():
-            for X_val, y_val in val_loader:
-                val_output = model(X_val)
-                val_loss += criterion(val_output, y_val).item()
-                val_predictions = val_output.argmax(dim=1)
-                val_correct_predictions += (val_predictions == y_val).sum().item()
-                val_total_samples += y_val.size(0)
-        
-        val_loss /= len(val_loader)
-        val_accuracy = val_correct_predictions / val_total_samples
-        
-        print(f"Epoch [{epoch+1}/{num_epochs}], Loss: {train_loss:.4f}, Accuracy: {train_accuracy*100:.2f}%, Val Loss: {val_loss:.4f}, Val Accuracy: {val_accuracy*100:.2f}%")
+            for batch in test_loader:
+                if not isinstance(batch, (list, tuple)):
+                    raise ValueError("Each batch must be a tuple or list.")
+                if len(batch) < 2:
+                    raise ValueError("Each batch must contain at least one input and one label.")
+                
+                *inputs, labels = batch
+                labels = labels.to(device)
+                if len(inputs) == 1:
+                    inputs = inputs[0].to(device)
+                    outputs = model(inputs)
+                else:
+                    inputs = [inp.to(device) for inp in inputs]
+                    outputs = model(*inputs)
+
+                loss = criterion(outputs, labels)
+                total_val_loss += loss.item()
+                _, preds = torch.max(outputs, 1)
+                correct_val += (preds == labels).sum().item()
+                total_val += labels.size(0)
+
+        avg_val_loss = total_val_loss / len(test_loader)
+        val_acc = correct_val / total_val
+
+        print(f"Epoch [{epoch+1}/{num_epochs}]: "
+              f"Train Loss: {avg_train_loss:.4f}, Train Acc: {train_acc*100:.2f}%, "
+              f"Val Loss: {avg_val_loss:.4f}, Val Acc: {val_acc*100:.2f}%")
