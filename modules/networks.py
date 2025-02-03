@@ -208,11 +208,7 @@ class individualized_network(nn.Module):
         # --------------------------
         # Process Age
         # --------------------------
-        # If using embedding for age:
-        x_age_emb = self.age_embedding(x_age)  # shape: (B, emb_dim_age)
-        
-        # If age is float and you want a small MLP, do instead:
-        # x_age_emb = self.age_fc(x_age.float())  # shape: (B, emb_dim_age)
+        x_age_emb = self.age_fc(x_age.float())  # shape: (B, emb_dim_age)
 
         # --------------------------
         # Process Sex
