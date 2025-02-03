@@ -26,25 +26,35 @@ heiberg = {dk: Heib['heiberg tbl. X'][i] for i,dk in enumerate(Heib['dk1875'])}
 
 
 def import_data_individualized():
-    persons = pd.read_csv(path6,sep='$')
+    persons = pd.read_csv(path6,sep=';', low_memory=False)
 
     persons = persons.assign(
-        age = persons['ageYears'].fillna(0) + persons['ageMonth'].fillna(0)/12 + persons['ageWeeks'].fillna(0)/52 + persons['ageDays'].fillna(0)/365.25 + persons['ageHours'].fillna(0)/8765.81277,
-        dateOfDeath = pd.to_datetime(persons['dateOfDeath']),
-        yearOfDeath = persons['dateOfDeath'].dt.year,
-        sex = [np.nan if x == 'Ukendt' else x for x in persons['sex']],
-        deathcauses = persons['deathcauses'].astype(str).str.lower().str.strip()
+        age = persons['ageYears'].fillna(0) + 
+            persons['ageMonth'].fillna(0)/12 + 
+            persons['ageWeeks'].fillna(0)/52 + 
+            persons['ageDays'].fillna(0)/365.25 + 
+            persons['ageHours'].fillna(0)/8765.81277,
+        
+        dateOfDeath = lambda df: pd.to_datetime(df['dateOfDeath'], errors='coerce'),
+        
+        sex = lambda df: df['sex'].replace('Ukendt', np.nan),
+        
+        deathcauses = lambda df: df['deathcauses'].astype(str).str.lower().str.strip()
     ).assign(
-        deathcause_mono = persons['deathcauses'].apply(remove_text_after_comma)
+        yearOfDeath = lambda df: df['dateOfDeath'].dt.year,
+        
+        deathcause_mono = lambda df: df['deathcauses'].fillna('').apply(remove_text_after_comma)
     ).assign(
-        icd10h = [icd10h.get(deathcause, np.nan) for deathcause in persons['deathcause_mono']],
-        icd10h_desc = [icd10h_desc.get(deathdesc,np.nan) for deathdesc in persons['deathcauses']],
-        dk1875 = [dk1875.get(deathcause, np.nan) for deathcause in persons['deathcauses']],
-        childcat = [childcat.get(icd, np.nan) for icd in persons['icd10h']],
-        infantcat = [infantcat.get(icd, np.nan) for icd in persons['icd10h']],
-        histcat = [histcat.get(icd, np.nan) for icd in persons['icd10h']],
-        heiberg = [heiberg.get(dk, np.nan) for dk in persons['dk1875']]
+        icd10h = lambda df: df['deathcause_mono'].map(icd10h),
+        icd10h_desc = lambda df: df['deathcauses'].map(icd10h_desc),
+        dk1875 = lambda df: df['deathcauses'].map(dk1875),
+        
+        childcat = lambda df: df['icd10h'].map(childcat),
+        infantcat = lambda df: df['icd10h'].map(infantcat),
+        histcat = lambda df: df['icd10h'].map(histcat),
+        heiberg = lambda df: df['dk1875'].map(heiberg)
     )
+
     
     df = persons[['deathcause_mono','deathcauses','age','sex','hood','yearOfDeath','icd10h','dk1875','childcat','infantcat','histcat','heiberg']]
 
