@@ -5,7 +5,7 @@ import torch.nn as nn
 from modules.import_data import import_data_standard
 from modules.text_preprocessor import *
 from modules.networks import network_qpidgram
-from modules.training import train_model
+from modules.training import train_generalized_model
 
 
 #### hyper-parameters
@@ -39,4 +39,4 @@ model = network_qpidgram(input_dim=vocab_size, len_output=output_dim, dropout_ra
 criterion = nn.CrossEntropyLoss()
 optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
 
-train_model(model, train_loader, test_loader, criterion, optimizer, num_epochs=num_epochs)
+train_generalized_model(model, train_loader, test_loader, criterion, optimizer, num_epochs=num_epochs)
