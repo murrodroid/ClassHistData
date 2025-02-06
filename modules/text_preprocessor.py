@@ -154,7 +154,6 @@ def prepare_deathcauses_tensors(df: pd.DataFrame, column: str, token_types: list
         all_tensors.append(tensor)
     
     combined_tensors = torch.cat(all_tensors, dim=1)
-    print(f'Deathcauses tensors are prepared with format: {token_types}')
     return combined_tensors, combined_vocabs
 
 def train_test_split_tensors(*X, y, test_size=0.2, random_state=42):
@@ -253,5 +252,4 @@ def create_dataloaders(train: list, test: list, batch_size: int):
     train_loader = DataLoader(TensorDataset(*train), batch_size=batch_size, shuffle=True)
     test_loader = DataLoader(TensorDataset(*test), batch_size=batch_size, shuffle=False)
 
-    print('Dataloaders prepared and ready.')
     return train_loader, test_loader

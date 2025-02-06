@@ -20,6 +20,7 @@ dropout_rate = 0.34
 device = return_device()
 
 df, _ = import_data_individualized()
+print('Data imported successfully.')
 
 val_sample = df.sample(n=round(df.shape[0]*0.002),random_state=333)
 df = df.drop(val_sample.index)
@@ -34,6 +35,7 @@ token_types = [
 
 # should we train on deathcause_mono or deathcauses?
 X_cause, vocab = prepare_deathcauses_tensors(df=train_df,column='deathcause_mono',token_types=token_types)
+print(f'Deathcauses tensors are prepared with format: {token_types}')
 X_age  = torch.tensor(StandardScaler().fit_transform(train_df['age'].to_numpy().reshape(-1,1)),dtype=torch.float).to(device)
 X_sex = torch.tensor(LabelEncoder().fit_transform(train_df['sex']),dtype=torch.long).to(device)
 y_tensor, y_label_encoder = encode_labels(train_df,column='icd10h')
@@ -41,10 +43,8 @@ num_classes = train_df['icd10h'].nunique()
 
 X_cause_train, X_cause_test, X_age_train, X_age_test, X_sex_train, X_sex_test, y_train, y_test = train_test_split_tensors(X_cause, X_age, X_sex, y=y_tensor, test_size=0.1)
 
-train_loader = DataLoader(TensorDataset(X_cause_train,X_age_train,X_sex_train,y_train),batch_size=batch_size, shuffle=True)
-test_loader = DataLoader(TensorDataset(X_cause_test,X_age_test,X_sex_test,y_test),batch_size=batch_size,shuffle=False)
-
 train_loader,test_loader = create_dataloaders(train=[X_cause_train,X_age_train,X_sex_train,y_train],test=[X_cause_test,X_age_test,X_sex_test,y_test],batch_size=batch_size)
+print('Dataloaders prepared and ready.')
 
 model = individualized_network(
     vocab_size_cause=len(vocab),
@@ -54,6 +54,7 @@ model = individualized_network(
     emb_dim_sex=8,
     emb_dim_age=16
 ).to(device)
+print('Network initialized.')
 
 criterion = nn.CrossEntropyLoss()
 optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
