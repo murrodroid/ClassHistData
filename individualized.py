@@ -6,13 +6,13 @@ from modules.import_data import import_data_individualized
 from modules.text_preprocessor import *
 from modules.networks import individualized_network
 from modules.training import train_model
-from modules.tools import return_device
+from modules.tools import return_device, undersampling
 from sklearn.preprocessing import StandardScaler
 
 
 #### hyper-parameters
 learning_rate = 0.0008
-batch_size = 32
+batch_size = 64
 num_epochs = 16
 dropout_rate = 0.34
 ####
@@ -24,7 +24,7 @@ print('Data imported successfully.')
 
 val_sample = df.sample(n=round(df.shape[0]*0.002),random_state=333)
 df = df.drop(val_sample.index)
-train_df = df[df.icd10h.notna()]
+train_df = undersampling(df=df[df.icd10h.notna()], target_col='icd10h', scale=0.15, lower_bound=70, verbose=True)
 
 token_types = [
         #{'method': 'char', 'ngram': 1},
