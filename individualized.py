@@ -33,7 +33,7 @@ token_types = [
     ]
 
 # should we train on deathcause_mono or deathcauses?
-X_cause, vocab = prepare_combined_tensors(df=train_df,column='deathcause_mono',token_types=token_types)
+X_cause, vocab = prepare_deathcauses_tensors(df=train_df,column='deathcause_mono',token_types=token_types)
 X_age  = torch.tensor(StandardScaler().fit_transform(train_df['age'].to_numpy().reshape(-1,1)),dtype=torch.float).to(device)
 X_sex = torch.tensor(LabelEncoder().fit_transform(train_df['sex']),dtype=torch.long).to(device)
 y_tensor, y_label_encoder = encode_labels(train_df,column='icd10h')
