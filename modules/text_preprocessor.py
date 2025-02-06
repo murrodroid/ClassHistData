@@ -249,7 +249,7 @@ def create_dataloaders(train: list, test: list, batch_size: int):
     if len(set(test_sizes)) > 1:
         raise ValueError(f"Error - Mismatched sample sizes in test set: {test_sizes}")
 
-    train_loader = DataLoader(TensorDataset(*train), batch_size=batch_size, shuffle=True, pin_memory=True)
-    test_loader = DataLoader(TensorDataset(*test), batch_size=batch_size, shuffle=False, pin_memory=True)
+    train_loader = DataLoader(TensorDataset(*train), batch_size=batch_size, shuffle=True)
+    test_loader = DataLoader(TensorDataset(*test), batch_size=batch_size, shuffle=False)
 
     return train_loader, test_loader
