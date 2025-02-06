@@ -44,6 +44,8 @@ X_cause_train, X_cause_test, X_age_train, X_age_test, X_sex_train, X_sex_test, y
 train_loader = DataLoader(TensorDataset(X_cause_train,X_age_train,X_sex_train,y_train),batch_size=batch_size, shuffle=True)
 test_loader = DataLoader(TensorDataset(X_cause_test,X_age_test,X_sex_test,y_test),batch_size=batch_size,shuffle=False)
 
+train_loader,test_loader = create_dataloaders(train=[X_cause_train,X_age_train,X_sex_train,y_train],test=[X_cause_test,X_age_test,X_sex_test,y_test],batch_size=batch_size)
+
 model = individualized_network(
     vocab_size_cause=len(vocab),
     num_classes=num_classes,

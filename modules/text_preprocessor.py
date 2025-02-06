@@ -117,7 +117,7 @@ def print_model_parameters(df: pd.DataFrame, char_vocab: dict, word_vocab: dict,
     print("Word Vocab Size:", len(word_vocab))
     print("Number of Output Classes:", len(label_encoder.classes_))
 
-def prepare_combined_tensors(df: pd.DataFrame, column: str, token_types: list[dict]) -> tuple:
+def prepare_deathcauses_tensors(df: pd.DataFrame, column: str, token_types: list[dict]) -> tuple:
     """Prepares combined tensors for specified token types from a DataFrame column.
     
     Args:
@@ -154,6 +154,7 @@ def prepare_combined_tensors(df: pd.DataFrame, column: str, token_types: list[di
         all_tensors.append(tensor)
     
     combined_tensors = torch.cat(all_tensors, dim=1)
+    print(f'Deathcauses tensors are prepared with format: {token_types}')
     return combined_tensors, combined_vocabs
 
 def train_test_split_tensors(*X, y, test_size=0.2, random_state=42):
@@ -208,3 +209,49 @@ def train_test_split_tensors(*X, y, test_size=0.2, random_state=42):
 
     # Return as a tuple so it can be unpacked
     return tuple(split_results)
+
+def create_dataloaders(train: list, test: list, batch_size: int):
+    """
+    Creates PyTorch DataLoaders for training and testing datasets.
+
+    Parameters:
+    ----------
+    train : list of torch.Tensor
+        A list of tensors representing training data (features and labels).
+    test : list of torch.Tensor
+        A list of tensors representing test data (features and labels).
+    batch_size : int
+        Batch size for the DataLoaders.
+
+    Returns:
+    -------
+    tuple (DataLoader, DataLoader)
+        train_loader: DataLoader for the training dataset.
+        test_loader: DataLoader for the test dataset.
+    
+    Raises:
+    ------
+    ValueError: If train and test lists do not have the same number of elements.
+    TypeError: If any element in train or test is not a PyTorch tensor.
+    ValueError: If tensors within train or test have mismatched first dimensions.
+    """
+    if len(train) != len(test):
+        raise ValueError(f"Error - Mismatch in lengths: train has {len(train)} elements, test has {len(test)} elements.")
+
+    if not all(isinstance(t, torch.Tensor) for t in train + test):
+        raise TypeError("Error - All elements in train and test must be PyTorch tensors.")
+
+    train_sizes = [t.shape[0] for t in train]
+    test_sizes = [t.shape[0] for t in test]
+    
+    if len(set(train_sizes)) > 1:
+        raise ValueError(f"Error - Mismatched sample sizes in train set: {train_sizes}")
+    
+    if len(set(test_sizes)) > 1:
+        raise ValueError(f"Error - Mismatched sample sizes in test set: {test_sizes}")
+
+    train_loader = DataLoader(TensorDataset(*train), batch_size=batch_size, shuffle=True)
+    test_loader = DataLoader(TensorDataset(*test), batch_size=batch_size, shuffle=False)
+
+    print('Dataloaders prepared and ready.')
+    return train_loader, test_loader
