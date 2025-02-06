@@ -6,6 +6,7 @@ from modules.import_data import import_data_individualized
 from modules.text_preprocessor import *
 from modules.networks import individualized_network
 from modules.training import train_model
+from modules.tools import return_device
 from sklearn.preprocessing import StandardScaler
 
 
@@ -16,7 +17,7 @@ num_epochs = 16
 dropout_rate = 0.34
 ####
 
-device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+device = return_device()
 
 df, _ = import_data_individualized()
 
