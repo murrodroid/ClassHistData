@@ -1,6 +1,8 @@
 import pandas as pd
 import numpy as np
+import random
 from modules.tools import remove_text_after_comma
+from sklearn.model_selection import train_test_split
 
 path1 = './datasets/louise_icd10h_edited.xlsx'
 path2 = './datasets/CHILDCAT 032024.xlsx'
@@ -42,7 +44,7 @@ def import_data_individualized():
         deathcauses = lambda df: df['deathcauses'].astype(str).str.lower().str.strip()
     ).assign(
         yearOfDeath = lambda df: df['dateOfDeath'].dt.year,
-        
+
         deathcause_mono = lambda df: df['deathcauses'].fillna('').apply(remove_text_after_comma)
     ).assign(
         icd10h = lambda df: df['deathcause_mono'].map(icd10h),
@@ -57,6 +59,20 @@ def import_data_individualized():
 
     
     df = persons[['deathcause_mono','deathcauses','age','sex','hood','yearOfDeath','icd10h','dk1875','childcat','infantcat','histcat','heiberg']]
+
+    return df, persons
+
+def import_data_random(retain_pct,seed=333):
+    random.seed(seed)
+    icd10h_random = {k: icd10h[k] for k in random.sample(list(icd10h), int(len(icd10h) * retain_pct))}
+    icd10h_ordered = {k: icd10h[k] for k in list(icd10h)[:int(len(icd10h) * retain_pct)]}
+
+    df, persons = import_data_individualized()
+
+    df = df.assign(
+        icd10h_random = lambda df: df['deathcause_mono'].map(icd10h_random),
+        icd10h_ordered = lambda df: df['deathcause_mono'].map(icd10h_ordered)
+    )
 
     return df, persons
 
