@@ -1,3 +1,6 @@
+import torch
+import torch.nn
+
 def evaluate_model(model, dataloader, criterion, device):
     """
     Evaluate the model on a given dataloader.
