@@ -73,7 +73,8 @@ def import_data_random(retain_pct,seed=333):
         icd10h_random = lambda df: df['deathcause_mono'].map(icd10h_random),
         icd10h_ordered = lambda df: df['deathcause_mono'].map(icd10h_ordered)
     )
-
+    df = df[df.icd10h.notna()]
+    
     return df, persons
 
 def import_data_standard():
