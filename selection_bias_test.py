@@ -19,6 +19,7 @@ num_epochs = 16
 dropout_rate = 0.34
 retain_pct = 0.4
 k_folds = 5
+undersampling_scale = 0.15
 ####
 
 device = return_device()
@@ -27,7 +28,7 @@ df, _ = import_data_random(retain_pct)
 print('Data imported successfully.')
 
 # undersampling might be a huge bias - talk with Mads
-df = undersampling(df=df, target_col='icd10h', scale=0.15, lower_bound=50)
+df = undersampling(df=df, target_col='icd10h', scale=undersampling_scale, lower_bound=50)
 
 model_names = ['random_df','ordered_df']
 random_df, val_random_df = df[df.icd10h_random.notna()], df[df.icd10h_random.isna()]

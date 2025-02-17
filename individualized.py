@@ -15,6 +15,7 @@ learning_rate = 0.0008
 batch_size = 64
 num_epochs = 16
 dropout_rate = 0.34
+undersampling_scale = 0.15
 ####
 
 device = return_device()
@@ -24,7 +25,7 @@ print('Data imported successfully.')
 
 val_sample = df.sample(n=round(df.shape[0]*0.002),random_state=333)
 df = df.drop(val_sample.index)
-train_df = undersampling(df=df[df.icd10h.notna()], target_col='icd10h', scale=0.15, lower_bound=70, verbose=True)
+train_df = undersampling(df=df[df.icd10h.notna()], target_col='icd10h', scale=undersampling_scale, lower_bound=70, verbose=True)
 
 token_types = [
     #{'method': 'char', 'ngram': 1},
