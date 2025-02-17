@@ -27,11 +27,11 @@ df = df.drop(val_sample.index)
 train_df = undersampling(df=df[df.icd10h.notna()], target_col='icd10h', scale=0.15, lower_bound=70, verbose=True)
 
 token_types = [
-        #{'method': 'char', 'ngram': 1},
-        {'method': 'char', 'ngram': 2},
-        {'method': 'char', 'ngram': 3},
-        {'method': 'word', 'ngram': 0}
-    ]
+    #{'method': 'char', 'ngram': 1},
+    {'method': 'char', 'ngram': 2},
+    {'method': 'char', 'ngram': 3},
+    {'method': 'word', 'ngram': 0}
+]
 
 # should we train on deathcause_mono or deathcauses?
 X_cause, vocab = prepare_deathcauses_tensors(df=train_df,column='deathcause_mono',token_types=token_types)
