@@ -26,6 +26,9 @@ device = return_device()
 df, _ = import_data_random(retain_pct)
 print('Data imported successfully.')
 
+# undersampling might be a huge bias - talk with Mads
+df = undersampling(df=df, target_col='icd10h', scale=0.15, lower_bound=50)
+
 model_names = ['random_df','ordered_df']
 random_df, val_random_df = df[df.icd10h_random.notna()], df[df.icd10h_random.isna()]
 ordered_df, val_ordered_df = df[df.icd10h_ordered.notna()], df[df.icd10h_ordered.isna()]
@@ -54,6 +57,8 @@ for i, train_df in enumerate([random_df, ordered_df]):
     
     # For each fold, create a train/test split and train the model on the fold's training data
     for fold, (train_idx, fold_test_idx) in enumerate(skf.split(X_cause, y_tensor.cpu().numpy())):
+        print(f'Fold {fold+1} for {model_names[i]} initiated.')
+        
         X_cause_train = X_cause[train_idx]
         X_age_train = X_age[train_idx]
         X_sex_train = X_sex[train_idx]
@@ -80,6 +85,7 @@ for i, train_df in enumerate([random_df, ordered_df]):
         criterion = nn.CrossEntropyLoss()
         optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
         
+        print(f'Training of {model_names[i]} in Fold {fold+1} has begun.')
         train_model(model, train_loader, fold_test_loader, criterion, optimizer, num_epochs, device=device)
         
         fold_model_path = os.path.join(model_folder, f"{model_names[i]}_fold{fold+1}.pth")
@@ -87,6 +93,7 @@ for i, train_df in enumerate([random_df, ordered_df]):
         fold_model_paths.append(fold_model_path)
 
     # Prepare external validation data 
+    print(f'Training complete. Initiating validation check.')
     val_df = val_random_df if i == 0 else val_ordered_df
     X_cause_val, _ = prepare_deathcauses_tensors(df=val_df, column='deathcause_mono', token_types=token_types)
     X_age_val = torch.tensor(StandardScaler().fit_transform(val_df['age'].to_numpy().reshape(-1, 1)),
