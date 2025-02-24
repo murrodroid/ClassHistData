@@ -118,35 +118,45 @@ def print_model_parameters(df: pd.DataFrame, char_vocab: dict, word_vocab: dict,
     print("Word Vocab Size:", len(word_vocab))
     print("Number of Output Classes:", len(label_encoder.classes_))
 
-def prepare_deathcauses_tensors(df: pd.DataFrame, column: str, token_types: list[dict]) -> tuple:
-    """Prepares combined tensors for specified token types from a DataFrame column.
+def prepare_deathcauses_tensors(df: pd.DataFrame, column: str, token_types: list[dict], pretrained_vocab: dict = None) -> tuple:
+    """
+    Prepares combined tensors for specified token types from a DataFrame column.
     
-    Args:
-        df (pd.DataFrame): The input DataFrame.
-        column (str): The name of the column to tokenize and prepare tensors for.
-        token_types (list[dict]): A list of token types, each with 'method' and 'ngram' keys.
+    If a pretrained_vocab is provided, it is used to map tokens to indices.
+    Otherwise, a new combined vocabulary is built from the data.
     
     Returns:
-        tuple: A combined tensor of tokenized sequences and the combined vocabulary.
+        tuple: (combined tensor of tokenized sequences, combined vocabulary)
     """
-    combined_vocabs = {}
-    for token_type in token_types:
-        # Dynamically derive name
-        token_type_name = f"{token_type['method']}_{token_type['ngram']}gram" if token_type['ngram'] > 0 else f"{token_type['method']}_tokenized"
-        column_name = f"{token_type_name}_tokenized"
-        
-        df = tokenize(df, column=column, method=token_type['method'], ngram=token_type['ngram'])
-        tokenized_column = f"{column}_{token_type['method']}_{token_type['ngram']}gram" if token_type['ngram'] > 0 else f"{column}_tokenized"
-        
-        all_tokens = set()
-        for token_list in df[tokenized_column]:
-            all_tokens.update(token_list)
-        
-        vocab = {token: i + len(combined_vocabs) for i, token in enumerate(sorted(all_tokens))}
-        combined_vocabs.update(vocab)
-        
-        df = df.assign(**{column_name: df[tokenized_column].apply(lambda x: [combined_vocabs[token] for token in x])})
-
+    if pretrained_vocab is None:
+        combined_vocabs = {}
+        for token_type in token_types:
+            token_type_name = f"{token_type['method']}_{token_type['ngram']}gram" if token_type['ngram'] > 0 else f"{token_type['method']}_tokenized"
+            column_name = f"{token_type_name}_tokenized"
+            
+            df = tokenize(df, column=column, method=token_type['method'], ngram=token_type['ngram'])
+            tokenized_column = f"{column}_{token_type['method']}_{token_type['ngram']}gram" if token_type['ngram'] > 0 else f"{column}_tokenized"
+            
+            all_tokens = set()
+            for token_list in df[tokenized_column]:
+                all_tokens.update(token_list)
+            
+            vocab = {token: i + len(combined_vocabs) for i, token in enumerate(sorted(all_tokens))}
+            combined_vocabs.update(vocab)
+            
+            df = df.assign(**{column_name: df[tokenized_column].apply(lambda x: [combined_vocabs[token] for token in x])})
+    else:
+        combined_vocabs = pretrained_vocab
+        for token_type in token_types:
+            token_type_name = f"{token_type['method']}_{token_type['ngram']}gram" if token_type['ngram'] > 0 else f"{token_type['method']}_tokenized"
+            column_name = f"{token_type_name}_tokenized"
+            
+            df = tokenize(df, column=column, method=token_type['method'], ngram=token_type['ngram'])
+            tokenized_column = f"{column}_{token_type['method']}_{token_type['ngram']}gram" if token_type['ngram'] > 0 else f"{column}_tokenized"
+            
+            # Map tokens using the pretrained vocabulary (ignore tokens not present)
+            df = df.assign(**{column_name: df[tokenized_column].apply(lambda x: [combined_vocabs[token] for token in x if token in combined_vocabs])})
+    
     all_tensors = []
     for token_type in token_types:
         token_type_name = f"{token_type['method']}_{token_type['ngram']}gram" if token_type['ngram'] > 0 else f"{token_type['method']}_tokenized"
