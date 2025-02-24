@@ -34,7 +34,6 @@ model_names = ['random_df','ordered_df']
 random_df, val_random_df = df[df.icd10h_random.notna()], df[df.icd10h_random.isna()]
 ordered_df, val_ordered_df = df[df.icd10h_ordered.notna()], df[df.icd10h_ordered.isna()]
 
-
 token_types = [
     {'method': 'char', 'ngram': 2},
     {'method': 'char', 'ngram': 3},
@@ -101,10 +100,11 @@ for i, train_df in enumerate([random_df, ordered_df]):
     print(f'Training complete. Initiating validation check.')
     val_df = val_random_df if i == 0 else val_ordered_df
     X_cause_val, _ = prepare_deathcauses_tensors(df=val_df, column='deathcause_mono', token_types=token_types, pretrained_vocab=vocab)
-    X_age_val = torch.tensor(StandardScaler().fit_transform(val_df['age'].to_numpy().reshape(-1, 1)),
-                            dtype=torch.float).to(device)
-    X_sex_val = torch.tensor(LabelEncoder().fit_transform(val_df['sex']),
-                            dtype=torch.long).to(device)
+    X_age_val = torch.tensor(scaler_age.transform(val_df['age'].to_numpy().reshape(-1, 1)),
+                        dtype=torch.float).to(device)
+    X_sex_val = torch.tensor(le_sex.transform(val_df['sex']),
+                        dtype=torch.long).to(device)
+
     y_val, _ = encode_labels(val_df, column='icd10h', label_encoder=y_label_encoder)
     _, val_loader = create_dataloaders(
         train=[X_cause_val, X_age_val, X_sex_val, y_val],
