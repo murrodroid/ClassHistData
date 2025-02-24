@@ -88,17 +88,18 @@ def prepare_df_tensors(df: pd.DataFrame, column: str) -> torch.Tensor:
     ])
     return torch.tensor(padded_sequences, dtype=torch.long)
 
-def encode_labels(df: pd.DataFrame, column: str) -> torch.Tensor:
-    """Encodes labels from a categorical column into numeric values.
+def encode_labels(df: pd.DataFrame, column: str, label_encoder=None) -> tuple:
+    """
+    Encodes labels from a categorical column into numeric values.
     
-    Args:
-        df (pd.DataFrame): The input DataFrame.
-        column (str): The name of the column containing categorical labels.
+    If a pretrained label_encoder is provided, it is used to transform the data.
+    Otherwise, a new LabelEncoder is fitted on the data.
     
     Returns:
-        tuple: A tensor of encoded labels and the fitted LabelEncoder.
+        tuple: (tensor of encoded labels, fitted LabelEncoder)
     """
-    label_encoder = LabelEncoder().fit(df[column])
+    if label_encoder is None:
+        label_encoder = LabelEncoder().fit(df[column])
     y = label_encoder.transform(df[column])
     return torch.tensor(y, dtype=torch.long), label_encoder
 
