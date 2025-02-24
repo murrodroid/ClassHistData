@@ -96,12 +96,12 @@ for i, train_df in enumerate([random_df, ordered_df]):
     # Prepare external validation data 
     print(f'Training complete. Initiating validation check.')
     val_df = val_random_df if i == 0 else val_ordered_df
-    X_cause_val, _ = prepare_deathcauses_tensors(df=val_df, column='deathcause_mono', token_types=token_types)
+    X_cause_val, _ = prepare_deathcauses_tensors(df=val_df, column='deathcause_mono', token_types=token_types, pretrained_vocab=vocab)
     X_age_val = torch.tensor(StandardScaler().fit_transform(val_df['age'].to_numpy().reshape(-1, 1)),
                             dtype=torch.float).to(device)
     X_sex_val = torch.tensor(LabelEncoder().fit_transform(val_df['sex']),
                             dtype=torch.long).to(device)
-    y_val, _ = encode_labels(val_df, column='icd10h')
+    y_val, _ = encode_labels(val_df, column='icd10h', label_encoder=y_label_encoder)
     _, val_loader = create_dataloaders(
         train=[X_cause_val, X_age_val, X_sex_val, y_val],
         batch_size=batch_size
@@ -118,4 +118,4 @@ for i, train_df in enumerate([random_df, ordered_df]):
             emb_dim_age=16
         ).to(device)
         model.load_state_dict(torch.load(fold_model_path))
-        evaluate_model(model, val_loader, criterion, device, model_folder, 'stats.txt')
+        evaluate_model(model, val_loader, criterion, device, model_folder, f'stats_fold{fold+1}.txt')
