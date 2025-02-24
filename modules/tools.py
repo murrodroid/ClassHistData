@@ -19,14 +19,18 @@ def return_device():
 
 def undersampling(df, target_col='icd10h', scale=0.1, lower_bound=50, random_state=333, verbose=False):
     """
-    Undersamples the DataFrame so that each class in the target column is reduced by a fixed fraction,
-    but not below a specified minimum number of samples (unless the class originally has fewer samples).
-    
+    Undersamples the DataFrame so that each class in the target column is reduced by an 
+    effective retention percentage that is the maximum of the specified scale and 
+    (lower_bound / count). This ensures that for classes with counts close to the lower_bound,
+    fewer samples are removed.
+
     For each class:
-        - If the original count n is less than lower_bound, all samples are kept.
-        - Otherwise, the final count is:
-              final_count = min(n, max(lower_bound, int(n * scale)))
-    
+        - If the original count n is less than or equal to lower_bound, all samples are kept.
+        - Otherwise, the effective retention percentage is:
+              effective_retain_pct = max(scale, lower_bound / n)
+          and the final count is:
+              final_count = int(n * effective_retain_pct)
+
     Parameters
     ----------
     df : pandas.DataFrame
@@ -34,8 +38,7 @@ def undersampling(df, target_col='icd10h', scale=0.1, lower_bound=50, random_sta
     target_col : str, default 'icd10h'
         The name of the column used for class labels.
     scale : float, default 0.1
-        The fraction of samples to keep for each class (before applying the lower bound).
-        (Should be between 0 and 1 for undersampling.)
+        The fraction of samples to keep for each class (for large classes).
     lower_bound : int, default 50
         The minimum number of samples to keep for any class (if available).
     random_state : int, default 333
@@ -67,38 +70,31 @@ def undersampling(df, target_col='icd10h', scale=0.1, lower_bound=50, random_sta
         print("Original class distribution:")
         print(df[target_col].value_counts())
     
-    # Container for the undersampled subsets
     sampled_dfs = []
-    
-    # Get the counts per class
     class_counts = df[target_col].value_counts()
     
     for label, n in class_counts.items():
         class_subset = df[df[target_col] == label]
         
-        # If the class has fewer samples than lower_bound, keep them all.
         if n <= lower_bound:
             final_count = n
         else:
-            # Compute the scaled count and then ensure at least lower_bound samples.
-            scaled_count = int(n * scale)
-            final_count = max(lower_bound, scaled_count)
-            # Ensure we don't sample more than available.
-            final_count = min(n, final_count)
+            # Determine the effective retention percentage.
+            effective_retain_pct = max(scale, lower_bound / n)
+            final_count = int(n * effective_retain_pct)
         
-        # Sample final_count rows (if final_count < n, perform sampling)
+        # Sample only if undersampling is needed.
         if final_count < n:
             class_subset = class_subset.sample(n=final_count, random_state=random_state)
         
         sampled_dfs.append(class_subset)
     
-    # Combine the sampled subsets and shuffle the final DataFrame
     balanced_df = pd.concat(sampled_dfs).sample(frac=1, random_state=random_state).reset_index(drop=True)
     
     if verbose:
         print("\nNew class distribution:")
         print(balanced_df[target_col].value_counts())
-        print(f'Ratio: {balanced_df.shape[0]/df.shape[0]}')
+        print(f'Ratio: {balanced_df.shape[0] / df.shape[0]}')
         print(f'Absolute: {balanced_df.shape[0]} / {df.shape[0]}')
     
     return balanced_df
