@@ -42,7 +42,7 @@ token_types = [
 ]
 
 for i, train_df in enumerate([random_df, ordered_df]):
-    model_folder = f'trained_models/{model_names[i]}_{k_folds}Folds'
+    model_folder = f'trained_models/retain_pct_{retain_pct}/{model_names[i]}_{k_folds}Folds'
     os.makedirs(model_folder, exist_ok=True)
     
     X_cause, vocab = prepare_deathcauses_tensors(df=train_df, column='deathcause_mono', token_types=token_types)
@@ -118,4 +118,4 @@ for i, train_df in enumerate([random_df, ordered_df]):
             emb_dim_age=16
         ).to(device)
         model.load_state_dict(torch.load(fold_model_path))
-        evaluate_model(model, val_loader, criterion, device=device)
+        evaluate_model(model, val_loader, criterion, device, model_folder, 'stats.txt')
