@@ -104,4 +104,4 @@ def train_model(model, train_loader, test_loader, criterion, optimizer, num_epoc
         # Display summary for each epoch
         print(f"\nEpoch [{epoch+1}/{num_epochs}]: "
               f"Train Loss: {avg_train_loss:.4f}, Train Acc: {train_acc*100:.2f}%, "
-              f"Val Loss: {avg_val_loss:.4f}, Val Acc: {val_acc*100:.2f}%")
+              f"Test Loss: {avg_val_loss:.4f}, Test Acc: {val_acc*100:.2f}%")

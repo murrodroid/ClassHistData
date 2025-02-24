@@ -88,19 +88,30 @@ def prepare_df_tensors(df: pd.DataFrame, column: str) -> torch.Tensor:
     ])
     return torch.tensor(padded_sequences, dtype=torch.long)
 
-def encode_labels(df: pd.DataFrame, column: str, label_encoder=None) -> tuple:
+def encode_labels(df: pd.DataFrame, transform_column: str, label_encoder=None, fit_df: pd.DataFrame = None, fit_column: str = None) -> tuple:
     """
     Encodes labels from a categorical column into numeric values.
     
     If a pretrained label_encoder is provided, it is used to transform the data.
-    Otherwise, a new LabelEncoder is fitted on the data.
+    Otherwise, a new LabelEncoder is fitted.
+    
+    If fit_df is provided, the encoder is fitted on fit_df[fit_column] (or on fit_df[transform_column] if fit_column is None),
+    ensuring that the encoder sees all possible classes.
+    
+    The transformation (i.e. creating y_tensor) is then performed on df[transform_column].
     
     Returns:
         tuple: (tensor of encoded labels, fitted LabelEncoder)
     """
     if label_encoder is None:
-        label_encoder = LabelEncoder().fit(df[column])
-    y = label_encoder.transform(df[column])
+        # Fit on the full data if provided
+        if fit_df is not None:
+            if fit_column is None:
+                fit_column = transform_column
+            label_encoder = LabelEncoder().fit(fit_df[fit_column])
+        else:
+            label_encoder = LabelEncoder().fit(df[transform_column])
+    y = label_encoder.transform(df[transform_column])
     return torch.tensor(y, dtype=torch.long), label_encoder
 
 def print_model_parameters(df: pd.DataFrame, char_vocab: dict, word_vocab: dict, ngram_vocab: dict, label_encoder: LabelEncoder) -> None:
@@ -220,24 +231,27 @@ def train_test_split_tensors(*X, y, test_size=0.2, random_state=42):
     # Return as a tuple so it can be unpacked
     return tuple(split_results)
 
-def create_dataloaders(train: list, test: list, batch_size: int):
+def create_dataloaders(train: list, test: list = None, batch_size: int = 32):
     """
-    Creates PyTorch DataLoaders for training and testing datasets.
+    Creates PyTorch DataLoaders for training and testing (or validation) datasets.
 
     Parameters:
     ----------
     train : list of torch.Tensor
         A list of tensors representing training data (features and labels).
-    test : list of torch.Tensor
-        A list of tensors representing test data (features and labels).
+    test : list of torch.Tensor, optional
+        A list of tensors representing test/validation data (features and labels).
+        If not provided, only a single DataLoader is created for the training list.
     batch_size : int
         Batch size for the DataLoaders.
 
     Returns:
     -------
-    tuple (DataLoader, DataLoader)
-        train_loader: DataLoader for the training dataset.
-        test_loader: DataLoader for the test dataset.
+    tuple:
+        If test is provided:
+            (train_loader, test_loader)
+        Otherwise:
+            (val_loader) where val_loader is a DataLoader created from train list.
     
     Raises:
     ------
@@ -245,22 +259,27 @@ def create_dataloaders(train: list, test: list, batch_size: int):
     TypeError: If any element in train or test is not a PyTorch tensor.
     ValueError: If tensors within train or test have mismatched first dimensions.
     """
-    if len(train) != len(test):
-        raise ValueError(f"Error - Mismatch in lengths: train has {len(train)} elements, test has {len(test)} elements.")
-
-    if not all(isinstance(t, torch.Tensor) for t in train + test):
-        raise TypeError("Error - All elements in train and test must be PyTorch tensors.")
-
+    # Check that train elements are tensors
+    if not all(isinstance(t, torch.Tensor) for t in train):
+        raise TypeError("Error - All elements in train must be PyTorch tensors.")
+        
     train_sizes = [t.shape[0] for t in train]
-    test_sizes = [t.shape[0] for t in test]
-    
     if len(set(train_sizes)) > 1:
         raise ValueError(f"Error - Mismatched sample sizes in train set: {train_sizes}")
     
-    if len(set(test_sizes)) > 1:
-        raise ValueError(f"Error - Mismatched sample sizes in test set: {test_sizes}")
+    if test is not None:
+        if not all(isinstance(t, torch.Tensor) for t in test):
+            raise TypeError("Error - All elements in test must be PyTorch tensors.")
+        test_sizes = [t.shape[0] for t in test]
+        if len(set(test_sizes)) > 1:
+            raise ValueError(f"Error - Mismatched sample sizes in test set: {test_sizes}")
+        if len(train) != len(test):
+            raise ValueError(f"Error - Mismatch in lengths: train has {len(train)} elements, test has {len(test)} elements.")
 
-    train_loader = DataLoader(TensorDataset(*train), batch_size=batch_size, shuffle=True)
-    test_loader = DataLoader(TensorDataset(*test), batch_size=batch_size, shuffle=False)
-
-    return train_loader, test_loader
+        train_loader = DataLoader(TensorDataset(*train), batch_size=batch_size, shuffle=True)
+        test_loader = DataLoader(TensorDataset(*test), batch_size=batch_size, shuffle=False)
+        return train_loader, test_loader
+    else:
+        # Create a single DataLoader (e.g. for validation)
+        val_loader = DataLoader(TensorDataset(*train), batch_size=batch_size, shuffle=False)
+        return val_loader
