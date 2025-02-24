@@ -46,9 +46,13 @@ for i, train_df in enumerate([random_df, ordered_df]):
     os.makedirs(model_folder, exist_ok=True)
     
     X_cause, vocab = prepare_deathcauses_tensors(df=train_df, column='deathcause_mono', token_types=token_types)
-    X_age = torch.tensor(StandardScaler().fit_transform(train_df['age'].to_numpy().reshape(-1, 1)), dtype=torch.float).to(device)
-    X_sex = torch.tensor(LabelEncoder().fit_transform(train_df['sex']), dtype=torch.long).to(device)
     
+    scaler_age = StandardScaler().fit(train_df['age'].to_numpy().reshape(-1, 1))
+    le_sex = LabelEncoder().fit(train_df['sex'])
+    
+    X_age = torch.tensor(scaler_age.transform(train_df['age'].to_numpy().reshape(-1, 1)), dtype=torch.float).to(device)
+    X_sex = torch.tensor(le_sex.transform(train_df['sex']), dtype=torch.long).to(device)
+
     y_column = 'icd10h_random' if i == 0 else 'icd10h_ordered'
     y_tensor, y_label_encoder = encode_labels(train_df, column=y_column)
     num_classes = train_df['icd10h'].nunique()
