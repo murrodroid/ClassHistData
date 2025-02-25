@@ -16,10 +16,10 @@ from modules.model_evaluation import evaluate_model
 learning_rate = 0.0008
 batch_size = 64
 num_epochs = 16
-dropout_rate = 0.34
+dropout_rate = 0.6
 retain_pct = 0.4
 k_folds = 5
-undersampling_scale = 0.15
+undersampling_scale = 0.4
 ####
 
 device = return_device()
@@ -44,6 +44,8 @@ for i, train_df in enumerate([random_df, ordered_df]):
     model_folder = f'trained_models/retain_pct_{retain_pct}/{model_names[i]}_{k_folds}Folds'
     os.makedirs(model_folder, exist_ok=True)
     
+    print(f'Total size of dataset: {train_df.shape}')
+
     X_cause, vocab = prepare_deathcauses_tensors(df=train_df, column='deathcause_mono', token_types=token_types)
     
     scaler_age = StandardScaler().fit(train_df['age'].to_numpy().reshape(-1, 1))
@@ -53,8 +55,8 @@ for i, train_df in enumerate([random_df, ordered_df]):
     X_sex = torch.tensor(le_sex.transform(train_df['sex']), dtype=torch.long).to(device)
 
     y_column = 'icd10h_random' if i == 0 else 'icd10h_ordered'
-    y_tensor, y_label_encoder = encode_labels(train_df, column=y_column)
-    num_classes = train_df['icd10h'].nunique()
+    y_tensor, y_label_encoder = encode_labels(train_df, transform_column=y_column, fit_df=df, fit_column='icd10h')
+    num_classes = len(y_label_encoder.classes_)
     
     skf = StratifiedKFold(n_splits=k_folds, shuffle=True, random_state=42)
     fold_model_paths = []
@@ -98,6 +100,7 @@ for i, train_df in enumerate([random_df, ordered_df]):
 
     # Prepare external validation data 
     print(f'Training complete. Initiating validation check.')
+
     val_df = val_random_df if i == 0 else val_ordered_df
     X_cause_val, _ = prepare_deathcauses_tensors(df=val_df, column='deathcause_mono', token_types=token_types, pretrained_vocab=vocab)
     X_age_val = torch.tensor(scaler_age.transform(val_df['age'].to_numpy().reshape(-1, 1)),
@@ -105,14 +108,14 @@ for i, train_df in enumerate([random_df, ordered_df]):
     X_sex_val = torch.tensor(le_sex.transform(val_df['sex']),
                         dtype=torch.long).to(device)
 
-    y_val, _ = encode_labels(val_df, column='icd10h', label_encoder=y_label_encoder)
-    _, val_loader = create_dataloaders(
+    y_val, _ = encode_labels(val_df, transform_column='icd10h', label_encoder=y_label_encoder)
+    val_loader = create_dataloaders(
         train=[X_cause_val, X_age_val, X_sex_val, y_val],
         batch_size=batch_size
     )
 
     # Evaluate each fold model on the external validation set
-    for fold_model_path in fold_model_paths:
+    for i,fold_model_path in enumerate(fold_model_paths):
         model = individualized_network(
             vocab_size_cause=len(vocab),
             num_classes=num_classes,
@@ -122,4 +125,4 @@ for i, train_df in enumerate([random_df, ordered_df]):
             emb_dim_age=16
         ).to(device)
         model.load_state_dict(torch.load(fold_model_path))
-        evaluate_model(model, val_loader, criterion, device, model_folder, f'stats_fold{fold+1}.txt')
+        evaluate_model(model, val_loader, criterion, device, model_folder, f'stats_fold{i+1}.txt')
