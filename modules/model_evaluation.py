@@ -105,7 +105,7 @@ def validate_models(val_df, fold_model_paths, scaler_age, le_sex, y_label_encode
                 emb_dim_sex=8,
                 emb_dim_age=16
             ).to(device)
-            model.load_state_dict(torch.load(fold_model_path))
+            model.load_state_dict(torch.load(fold_model_path,weights_only=True))
             loss,acc = evaluate_model(model, val_loader, criterion, device, model_folder, f'fold{i+1}.csv')
             print(f'Accuracy: {acc} | Loss: {loss}')
         

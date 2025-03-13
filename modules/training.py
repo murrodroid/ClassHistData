@@ -156,4 +156,4 @@ def train_k_folds(i,X_cause,X_age,X_sex,y_tensor,model_names,model_folder,vocab,
 
     if verbose: print(f'Training for all {k_folds} folds completed.')
     
-    return fold_model_paths,
+    return fold_model_paths
