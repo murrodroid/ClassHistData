@@ -2,15 +2,16 @@ import torch
 import torch.nn as nn
 import os
 from sklearn.metrics import confusion_matrix
-from text_preprocessor import *
-from networks import individualized_network
-from training import train_model
-
-
 import os
 import torch
 import pandas as pd
 from sklearn.metrics import confusion_matrix
+
+from modules.text_preprocessor import *
+from modules.networks import individualized_network
+from modules.training import train_model
+
+
 
 
 
