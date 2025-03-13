@@ -1,6 +1,10 @@
 from tqdm import tqdm
 import torch
 from torch.utils.data import DataLoader, TensorDataset
+import os
+from sklearn.model_selection import StratifiedKFold
+from modules.text_preprocessor import *
+
 
 def train_model(model, train_loader, test_loader, criterion, optimizer, num_epochs=16, device='cpu'):
     """
@@ -105,3 +109,50 @@ def train_model(model, train_loader, test_loader, criterion, optimizer, num_epoc
         print(f"\nEpoch [{epoch+1}/{num_epochs}]: "
               f"Train Loss: {avg_train_loss:.4f}, Train Acc: {train_acc*100:.2f}%, "
               f"Test Loss: {avg_val_loss:.4f}, Test Acc: {val_acc*100:.2f}%")
+        
+
+
+def train_k_folds(i,X_cause,X_age,X_sex,y_tensor,model_names,model_folder,vocab,num_classes,dropout_rate,learning_rate,batch_size,num_epochs,network_architecture,k_folds,criterion,device,verbose=True):
+    fold_model_paths = [] 
+    skf = StratifiedKFold(n_splits=k_folds, shuffle=True, random_state=42)
+
+    for fold, (train_idx, fold_test_idx) in enumerate(skf.split(X_cause, y_tensor.cpu().numpy())):
+        print(f'Fold {fold+1} for {model_names[i]} initiated.')
+        
+        X_cause_train = X_cause[train_idx]
+        X_age_train = X_age[train_idx]
+        X_sex_train = X_sex[train_idx]
+        y_train = y_tensor[train_idx]
+        
+        X_cause_fold_test = X_cause[fold_test_idx]
+        X_age_fold_test = X_age[fold_test_idx]
+        X_sex_fold_test = X_sex[fold_test_idx]
+        y_fold_test = y_tensor[fold_test_idx]
+        
+        train_loader, fold_test_loader = create_dataloaders(
+            train=[X_cause_train, X_age_train, X_sex_train, y_train],
+            test=[X_cause_fold_test, X_age_fold_test, X_sex_fold_test, y_fold_test],
+            batch_size=batch_size
+        )
+
+        model = network_architecture(
+            vocab_size_cause=len(vocab),
+            num_classes=num_classes,
+            dropout_rate=dropout_rate,
+            emb_dim_cause=128,
+            emb_dim_sex=8,
+            emb_dim_age=16
+        ).to(device)
+
+        optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)
+        
+        print(f'Training of {model_names[i]} in Fold {fold+1} has begun.')
+        train_model(model, train_loader, fold_test_loader, criterion, optimizer, num_epochs, device=device)
+        
+        fold_model_path = os.path.join(model_folder, f"{model_names[i]}_fold{fold+1}.pth")
+        torch.save(model.state_dict(), fold_model_path)
+        fold_model_paths.append(fold_model_path)
+
+    if verbose: print(f'Training for all {k_folds} folds completed.')
+    
+    return fold_model_paths,
