@@ -1,15 +1,12 @@
 import torch
-import torch.nn as nn
 import os
-from sklearn.metrics import confusion_matrix
 import os
 import torch
 import pandas as pd
-from sklearn.metrics import confusion_matrix
+from sklearn.metrics import classification_report
 
 from modules.text_preprocessor import *
 from modules.networks import individualized_network
-from modules.training import train_model
 
 
 
@@ -52,8 +49,7 @@ def evaluate_model(model, dataloader, criterion, device, folder_location, file_n
             _, predicted = torch.max(outputs, 1)
             correct += (predicted == y).sum().item()
             total += y.size(0)
-            
-            # Accumulate targets and predictions for confusion matrix
+
             all_targets.extend(y.cpu().numpy())
             all_preds.extend(predicted.cpu().numpy())
     
@@ -61,22 +57,18 @@ def evaluate_model(model, dataloader, criterion, device, folder_location, file_n
     accuracy = correct / total
     print(f"Evaluation Loss: {avg_loss:.4f} | Accuracy: {accuracy:.4f}")
     
-    # Compute confusion matrix
-    cm = confusion_matrix(all_targets, all_preds)
+    cr = classification_report(all_targets, all_preds)
 
-    # Define file paths
     metrics_path = os.path.join(folder_location, f"metrics_{file_name}.csv")
-    cm_path = os.path.join(folder_location, f"cm_{file_name}.csv")
+    cr_path = os.path.join(folder_location, f"cm_{file_name}.csv")
 
-    # Save metrics as a CSV file
     metrics_df = pd.DataFrame({"Metric": ["Accuracy", "Average Loss"], "Value": [accuracy, avg_loss]})
     metrics_df.to_csv(metrics_path, index=False)
 
-    # Save confusion matrix with labeled rows & columns
-    cm_df = pd.DataFrame(cm, 
+    cr_df = pd.DataFrame(cr, 
                          index=["Actual Positive", "Actual Negative"], 
                          columns=["Predicted Positive", "Predicted Negative"])
-    cm_df.to_csv(cm_path)
+    cr_df.to_csv(cr_path)
 
     model.train()
     return avg_loss, accuracy
@@ -106,6 +98,6 @@ def validate_models(val_df, fold_model_paths, scaler_age, le_sex, y_label_encode
                 emb_dim_age=16
             ).to(device)
             model.load_state_dict(torch.load(fold_model_path,weights_only=True))
-            loss,acc = evaluate_model(model, val_loader, criterion, device, model_folder, f'fold{i+1}.csv')
+            loss,acc = evaluate_model(model, val_loader, criterion, device, model_folder, f'fold{i+1}')
             print(f'Accuracy: {acc} | Loss: {loss}')
         
