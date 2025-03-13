@@ -1,6 +1,7 @@
 # packages
 import os
 from sklearn.preprocessing import StandardScaler
+import datetime
 
 # modules
 from modules.import_data import import_data_random
@@ -16,7 +17,7 @@ from modules.tools import save_hyper_parameters
 #### hyper-parameters
 learning_rate = 0.0008
 batch_size = 64
-num_epochs = 16
+num_epochs = 2
 dropout_rate = 0.6
 retain_pct = 0.4
 k_folds = 5
@@ -24,6 +25,7 @@ undersampling_scale = 0.4
 ####
 
 
+date = datetime.datetime.now().strftime('%d%m%y')
 
 device = return_device()
 
@@ -47,7 +49,7 @@ token_types = [
 for i, train_df in enumerate([random_df, ordered_df]):
     print(f'K-fold training & evaluation of model {model_names[i]} initiated.')
 
-    model_folder = f'trained_models/retain_pct_{retain_pct}/{model_names[i]}_{k_folds}Folds'
+    model_folder = f'trained_models/{date}_retain_pct_{retain_pct}/{model_names[i]}_{k_folds}Folds'
     os.makedirs(model_folder, exist_ok=True)
     
     print(f'Total size of dataset: {train_df.shape}')
