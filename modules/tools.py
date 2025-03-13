@@ -1,5 +1,7 @@
 import torch
 import pandas as pd
+import os
+
 
 def remove_text_after_comma(s):
     paren_level = 0
@@ -98,3 +100,20 @@ def undersampling(df, target_col='icd10h', scale=0.1, lower_bound=50, random_sta
         print(f'Absolute: {balanced_df.shape[0]} / {df.shape[0]}')
     
     return balanced_df
+
+def save_hyper_parameters(model_folder,file_name,dropout_rate,learning_rate,num_epochs,retain_pct,undersampling_scale):
+    if not file_name.endswith('.txt'):
+        file_name += '.txt'
+    
+    output_path = os.path.join(model_folder, file_name)
+    
+    content = (
+        f"Dropout Rate: {dropout_rate}\n"
+        f"Learning Rate: {learning_rate}\n"
+        f"Number of Epochs: {num_epochs}\n"
+        f"Retain Percentage: {retain_pct}\n"
+        f"Undersampling Scale: {undersampling_scale}\n"
+    )
+    
+    with open(output_path, 'w') as f:
+        f.write(content)

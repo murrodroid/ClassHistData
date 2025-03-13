@@ -9,6 +9,7 @@ from modules.tools import return_device, undersampling
 from modules.model_evaluation import validate_models
 from modules.training import train_k_folds
 from modules.networks import individualized_network
+from modules.tools import save_hyper_parameters
 
 
 
@@ -62,7 +63,10 @@ for i, train_df in enumerate([random_df, ordered_df]):
     y_tensor, y_label_encoder = encode_labels(train_df, transform_column=y_column, fit_df=df, fit_column='icd10h')
     num_classes = len(y_label_encoder.classes_)
     criterion = nn.CrossEntropyLoss()
+
+
     fold_model_paths = train_k_folds(i,X_cause,X_age,X_sex,y_tensor,model_names,model_folder,vocab,num_classes,dropout_rate,learning_rate,batch_size,num_epochs,individualized_network,k_folds,criterion,device)
+    save_hyper_parameters(model_folder,f"{model_names[i]}_hyper_parameters.txt",dropout_rate,learning_rate,num_epochs,retain_pct,undersampling_scale)
     
     val_df = val_random_df if i == 0 else val_ordered_df
     validate_models(val_df, fold_model_paths, scaler_age, le_sex, y_label_encoder, token_types, batch_size, num_classes, vocab, dropout_rate, criterion, model_folder, device)
