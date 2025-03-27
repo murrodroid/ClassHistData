@@ -15,17 +15,18 @@ from modules.tools import save_hyper_parameters
 
 
 #### hyper-parameters
-learning_rate = 0.0008
+learning_rate = 0.0005
 batch_size = 64
-num_epochs = 2
-dropout_rate = 0.6
-retain_pct = 0.4
+num_epochs = 16
+dropout_rate = 0.5
+retain_pct = 0.5
 k_folds = 5
 undersampling_scale = 0.4
+undersampling_lower_bound = 150
 ####
 
 
-date = datetime.datetime.now().strftime('%d%m%y')
+date = datetime.datetime.now().strftime('%H%d%m%y')
 
 device = return_device()
 
@@ -33,11 +34,13 @@ df, _ = import_data_random(retain_pct)
 print('Data imported successfully.')
 
 # undersampling might be a huge bias - talk with Mads
-df = undersampling(df=df, target_col='icd10h', scale=undersampling_scale, lower_bound=50)
+df = undersampling(df=df, target_col='icd10h', scale=undersampling_scale, lower_bound=undersampling_lower_bound)
 
 model_names = ['random_df','ordered_df']
 random_df, val_random_df = df[df.icd10h_random.notna()], df[df.icd10h_random.isna()]
 ordered_df, val_ordered_df = df[df.icd10h_ordered.notna()], df[df.icd10h_ordered.isna()]
+
+print(f'Size of random_df: {random_df.shape}, Size of ordered_df: {ordered_df.shape}')
 
 token_types = [
     {'method': 'char', 'ngram': 2},
