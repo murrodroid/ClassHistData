@@ -34,7 +34,7 @@ test_loader = DataLoader(TensorDataset(X_test, y_test), batch_size=32, shuffle=F
 vocab_size = len(vocab)
 output_dim = train_df['icd10h_code'].nunique()
 
-model = network_qpidgram(input_dim=vocab_size, len_output=output_dim, dropout_rate=dropout_rate)
+model = network_qpidgram(input_dim=vocab_size, output_dim=output_dim, dropout_rate=dropout_rate)
 
 criterion = nn.CrossEntropyLoss()
 optimizer = torch.optim.Adam(model.parameters(), lr=learning_rate)

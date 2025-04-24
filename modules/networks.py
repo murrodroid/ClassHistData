@@ -4,12 +4,12 @@ import torch.nn as nn
 class network_qpidgram(nn.Module):
     """A neural network model that takes combined tensor input and processes it using n-gram and word-based pathways."""
     
-    def __init__(self, input_dim: int, len_output: int, dropout_rate: float = 0.5):
+    def __init__(self, input_dim: int, output_dim: int, dropout_rate: float = 0.5):
         """Initializes the model with embedding, convolution, pooling, and fully connected layers.
         
         Args:
             input_dim (int): The size of the combined vocabulary.
-            len_output (int): The number of output classes.
+            output_dim (int): The number of output classes.
             dropout_rate (float): The dropout rate.
         """
         super(network_qpidgram, self).__init__()
@@ -56,7 +56,7 @@ class network_qpidgram(nn.Module):
             nn.Linear(2048, 1024),
             nn.ReLU(),
             nn.Dropout(dropout_rate),
-            nn.Linear(1024, len_output)
+            nn.Linear(1024, output_dim)
         )
 
     def forward(self, X: torch.Tensor) -> torch.Tensor:

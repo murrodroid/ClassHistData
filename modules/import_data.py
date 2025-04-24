@@ -1,7 +1,7 @@
 import pandas as pd
 import numpy as np
 import random
-from modules.tools import remove_text_after_comma, simplify_icd10h_to_category
+from modules.tools import remove_text_after_comma
 from sklearn.model_selection import train_test_split
 
 path1 = './datasets/louise_icd10h_edited.xlsx'
@@ -57,7 +57,8 @@ def import_data_individualized():
         heiberg = lambda df: df['dk1875'].map(heiberg)
     )
 
-    
+    df[['icd10h_category', 'icd10h_subcategory']] = (df['icd10h'].str.split('.', n=1, expand=True))
+
     df = persons[['deathcause_mono','deathcauses','age','sex','hood','yearOfDeath','icd10h','dk1875','childcat','infantcat','histcat','heiberg']]
 
     return df, persons
@@ -84,10 +85,6 @@ def import_data_standard(target='icd10h_code'):
     Returns:
         pd.DataFrame: DataFrame containing columns from the source files along with additional processed columns.
     """
-    if target not in df.columns:
-        raise ValueError(
-            f"'{target}' is not one of the dataframe columns: {list(df.columns)}"
-        )
 
     df = icd_df[['tidy_cod','icd10h_code','dk1875_code','icd10h_description_english']]
     df = df.assign(
@@ -99,9 +96,12 @@ def import_data_standard(target='icd10h_code'):
         heiberg_code=lambda df: [heiberg.get(dk, np.nan) for dk in df['dk1875_code']]
     )
     
-    df[['icd10h_category', 'icd10h_subcategory']] = (
-    df['icd10h_code'].str.split('.', n=1, expand=True)
-    )
+    if target not in df.columns:
+        raise ValueError(
+            f"'{target}' is not one of the dataframe columns: {list(df.columns)}"
+        )
+
+    df[['icd10h_category', 'icd10h_subcategory']] = (df['icd10h_code'].str.split('.', n=1, expand=True))
 
     train_df = df[df[target].notna()]
 
