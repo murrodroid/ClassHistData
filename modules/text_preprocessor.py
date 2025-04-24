@@ -81,12 +81,15 @@ def prepare_df_tensors(df: pd.DataFrame, column: str) -> torch.Tensor:
     Returns:
         torch.Tensor: A padded tensor of tokenized sequences.
     """
-    max_len = max(df[column].apply(len))
-    padded_sequences = np.array([
-        np.pad(seq, (0, max_len - len(seq)), 'constant', constant_values=0)
-        for seq in df[column]
-    ])
-    return torch.tensor(padded_sequences, dtype=torch.long)
+    max_len = df[column].str.len().max()
+    pad_id  = 0                         # ← use the reserved PAD index
+    arr = np.array(
+        [np.pad(seq, (0, max_len - len(seq)),
+                constant_values=pad_id) for seq in df[column]],
+        dtype=np.int64,
+    )
+    return torch.from_numpy(arr)
+
 
 def encode_labels(df: pd.DataFrame, transform_column: str, label_encoder=None, fit_df: pd.DataFrame = None, fit_column: str = None) -> tuple:
     """
@@ -129,54 +132,74 @@ def print_model_parameters(df: pd.DataFrame, char_vocab: dict, word_vocab: dict,
     print("Word Vocab Size:", len(word_vocab))
     print("Number of Output Classes:", len(label_encoder.classes_))
 
-def prepare_deathcauses_tensors(df: pd.DataFrame, column: str, token_types: list[dict], pretrained_vocab: dict = None) -> tuple:
+def prepare_deathcauses_tensors(
+    df: pd.DataFrame,
+    column: str,
+    token_types: list[dict],
+    pretrained_vocab: dict | None = None,
+):
     """
-    Prepares combined tensors for specified token types from a DataFrame column.
-    
-    If a pretrained_vocab is provided, it is used to map tokens to indices.
-    Otherwise, a new combined vocabulary is built from the data.
-    
-    Returns:
-        tuple: (combined tensor of tokenized sequences, combined vocabulary)
+    Build one big vocabulary shared by all token types, reserve id 0 for PAD,
+    map every sequence to integer ids, pad to max-length, and concatenate the
+    tensors along the time dimension.
+
+    Returns
+    -------
+    combined_tensor : torch.Tensor   # (N, L_total)
+    vocab           : dict           # token -> id (0 = PAD)
     """
+    # ───── 1. build / load vocab ──────────────────────────────────────────
     if pretrained_vocab is None:
-        combined_vocabs = {}
-        for token_type in token_types:
-            token_type_name = f"{token_type['method']}_{token_type['ngram']}gram" if token_type['ngram'] > 0 else f"{token_type['method']}_tokenized"
-            column_name = f"{token_type_name}_tokenized"
-            
-            df = tokenize(df, column=column, method=token_type['method'], ngram=token_type['ngram'])
-            tokenized_column = f"{column}_{token_type['method']}_{token_type['ngram']}gram" if token_type['ngram'] > 0 else f"{column}_tokenized"
-            
-            all_tokens = set()
-            for token_list in df[tokenized_column]:
-                all_tokens.update(token_list)
-            
-            vocab = {token: i + len(combined_vocabs) for i, token in enumerate(sorted(all_tokens))}
-            combined_vocabs.update(vocab)
-            
-            df = df.assign(**{column_name: df[tokenized_column].apply(lambda x: [combined_vocabs[token] for token in x])})
+        vocab = {"<PAD>": 0}                   # 0 = padding
+        next_id = 1
+
+        for t in token_types:
+            # tokenize the column if not already present
+            df = tokenize(df, column, t["method"], t["ngram"])
+            tok_col = (
+                f"{column}_{t['method']}_{t['ngram']}gram"
+                if t["ngram"] > 0
+                else f"{column}_tokenized"
+            )
+
+            for token in df[tok_col]:
+                for tok in token:              # token is a list
+                    if tok not in vocab:
+                        vocab[tok] = next_id
+                        next_id += 1
     else:
-        combined_vocabs = pretrained_vocab
-        for token_type in token_types:
-            token_type_name = f"{token_type['method']}_{token_type['ngram']}gram" if token_type['ngram'] > 0 else f"{token_type['method']}_tokenized"
-            column_name = f"{token_type_name}_tokenized"
-            
-            df = tokenize(df, column=column, method=token_type['method'], ngram=token_type['ngram'])
-            tokenized_column = f"{column}_{token_type['method']}_{token_type['ngram']}gram" if token_type['ngram'] > 0 else f"{column}_tokenized"
-            
-            # Map tokens using the pretrained vocabulary (ignore tokens not present)
-            df = df.assign(**{column_name: df[tokenized_column].apply(lambda x: [combined_vocabs[token] for token in x if token in combined_vocabs])})
-    
-    all_tensors = []
-    for token_type in token_types:
-        token_type_name = f"{token_type['method']}_{token_type['ngram']}gram" if token_type['ngram'] > 0 else f"{token_type['method']}_tokenized"
-        tokenized_col = f"{token_type_name}_tokenized"
-        tensor = prepare_df_tensors(df, column=tokenized_col)
-        all_tensors.append(tensor)
-    
-    combined_tensors = torch.cat(all_tensors, dim=1)
-    return combined_tensors, combined_vocabs
+        vocab = pretrained_vocab
+
+    # ───── 2. map tokens → ids and pad each sequence ─────────────────────
+    tensors = []
+    for t in token_types:
+        df = tokenize(df, column, t["method"], t["ngram"])
+        src_col = (
+            f"{column}_{t['method']}_{t['ngram']}gram"
+            if t["ngram"] > 0
+            else f"{column}_tokenized"
+        )
+        dst_col = f"{t['method']}_{t['ngram']}gram_tokenized"
+
+        df[dst_col] = df[src_col].apply(
+            lambda seq: [vocab[tok] for tok in seq if tok in vocab]
+        )
+
+        # pad to max-length of this token-type
+        max_len = df[dst_col].str.len().max()
+        pad_id = 0                             # we reserved 0 for PAD
+        padded = np.array(
+            [
+                np.pad(s, (0, max_len - len(s)), constant_values=pad_id)
+                for s in df[dst_col]
+            ],
+            dtype=np.int64,
+        )
+        tensors.append(torch.from_numpy(padded))
+
+    # ───── 3. concat along time dimension ────────────────────────────────
+    combined = torch.cat(tensors, dim=1)       # (batch, L1+L2+…)
+    return combined, vocab
 
 def train_test_split_tensors(*X, y, test_size=0.2, random_state=42):
     """
