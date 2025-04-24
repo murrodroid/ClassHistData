@@ -6,79 +6,92 @@ from sklearn.model_selection import StratifiedKFold
 
 from modules.text_preprocessor import *
 
-
-def train_model(model, train_loader, test_loader, criterion, optimizer, num_epochs=16, device='cpu'):
+def train_model(model, train_loader, test_loader, criterion, optimizer, num_epochs: int = 16, device: str = "cpu", save_path: str | None = None):
     """
-    Trains the model while dynamically adapting to the input format.
+    Trains `model` for the specified number of epochs, evaluates on `test_loader`
+    after every epoch, prints progress/loss/accuracy, and (optionally) saves the
+    trained weights.
 
-    Uses tqdm to display:
-      - Epoch progress (Total epochs left)
-      - Batch progress within each epoch (How far each epoch is to completion)
+    Args
+    ----
+    model (nn.Module)              : The neural-network model to train.
+    train_loader (DataLoader)      : DataLoader yielding the training batches.
+    test_loader (DataLoader)       : DataLoader yielding the validation/test batches.
+    criterion (nn.Module)          : Loss function.
+    optimizer (torch.optim.Optimizer): Optimizer.
+    num_epochs (int), default 16   : Training epochs.
+    device (str), default "cpu"    : "cuda" or "cpu".
+    save_path (str | None)         : If given, `model.state_dict()` is written here
+                                     when training completes.
 
-    Args:
-        model (nn.Module): The neural network model to train.
-        train_loader (DataLoader): DataLoader for the training set.
-        test_loader (DataLoader): DataLoader for the validation/test set.
-        criterion (nn.Module): Loss function.
-        optimizer (torch.optim.Optimizer): Optimizer.
-        num_epochs (int): Number of epochs.
-        device (str): Device to run the model on ('cuda' or 'cpu').
-
-    Returns:
-        None
+    Returns
+    -------
+    None
     """
+    # ─────────────────── setup ───────────────────
     model.to(device)
-    print('Training has begun.')
+    print("Training has begun.")
 
+    # ─────────────────── training ───────────────────
     for epoch in tqdm(range(num_epochs), desc="Total Epoch Progress", unit="epoch"):
         model.train()
-        total_loss = 0.0
-        correct_train = 0
-        total_train = 0
+        total_loss = correct_train = total_train = 0
 
-        # Batch progress bar within each epoch
-        train_iterator = tqdm(train_loader, desc=f"Epoch {epoch+1}/{num_epochs}", unit="batch", leave=False)
+        train_iterator = tqdm(
+            train_loader,
+            desc=f"Epoch {epoch + 1}/{num_epochs}",
+            unit="batch",
+            leave=False,
+        )
 
-        for batch in train_iterator:
-            # Unpack batch: last element is labels
-            if not isinstance(batch, (list, tuple)):
-                raise ValueError("Each batch must be a tuple or list.")
-            if len(batch) < 2:
-                raise ValueError("Each batch must contain at least one input and one label.")
-
-            *inputs, labels = batch
+        for *inputs, labels in train_iterator:
             labels = labels.to(device)
-
-            # Move inputs to device
-            if len(inputs) == 1:
-                inputs = inputs[0].to(device)
-                outputs = model(inputs)
-            else:
-                inputs = [inp.to(device) for inp in inputs]
-                outputs = model(*inputs)
-
-            # Compute loss and update
+            outputs = model(inputs[0].to(device)) if len(inputs) == 1 else model(
+                *[x.to(device) for x in inputs]
+            )
             loss = criterion(outputs, labels)
+
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
 
             total_loss += loss.item()
-            _, preds = torch.max(outputs, 1)
-            correct_train += (preds == labels).sum().item()
+            correct_train += (outputs.argmax(1) == labels).sum().item()
             total_train += labels.size(0)
-
-            # Update batch progress bar dynamically
             train_iterator.set_postfix(loss=f"{loss.item():.4f}")
 
         avg_train_loss = total_loss / len(train_loader)
         train_acc = correct_train / total_train
 
-        # Validation phase
+        # ─────────────────── validation ───────────────────
         model.eval()
-        total_val_loss = 0.0
-        correct_val = 0
-        total_val = 0
+        total_val_loss = correct_val = total_val = 0
+        with torch.no_grad():
+            for *inputs, labels in test_loader:
+                labels = labels.to(device)
+                outputs = model(inputs[0].to(device)) if len(inputs) == 1 else model(
+                    *[x.to(device) for x in inputs]
+                )
+                loss = criterion(outputs, labels)
+
+                total_val_loss += loss.item()
+                correct_val += (outputs.argmax(1) == labels).sum().item()
+                total_val += labels.size(0)
+
+        avg_val_loss = total_val_loss / len(test_loader)
+        val_acc = correct_val / total_val
+
+        print(
+            f"\nEpoch [{epoch + 1}/{num_epochs}]: "
+            f"Train Loss: {avg_train_loss:.4f}, Train Acc: {train_acc*100:.2f}%, "
+            f"Test Loss: {avg_val_loss:.4f}, Test Acc: {val_acc*100:.2f}%"
+        )
+
+    # ─────────────────── save model ───────────────────
+    if save_path:
+        os.makedirs(os.path.dirname(os.path.abspath(save_path)), exist_ok=True)
+        torch.save(model.state_dict(), save_path)
+        print(f"\nModel weights saved to {save_path}")
 
         with torch.no_grad():
             for batch in test_loader:
