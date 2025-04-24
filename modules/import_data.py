@@ -1,7 +1,7 @@
 import pandas as pd
 import numpy as np
 import random
-from modules.tools import remove_text_after_comma
+from modules.tools import remove_text_after_comma, simplify_icd10h_to_category
 from sklearn.model_selection import train_test_split
 
 path1 = './datasets/louise_icd10h_edited.xlsx'
@@ -97,6 +97,10 @@ def import_data_standard(target='icd10h_code'):
         infantcat_code=lambda df: [infantcat.get(icd, np.nan) for icd in df['icd10h_code']],
         histcat_code=lambda df: [histcat.get(icd, np.nan) for icd in df['icd10h_code']],
         heiberg_code=lambda df: [heiberg.get(dk, np.nan) for dk in df['dk1875_code']]
+    )
+    
+    df[['icd10h_category', 'icd10h_subcategory']] = (
+    df['icd10h_code'].str.split('.', n=1, expand=True)
     )
 
     train_df = df[df[target].notna()]
