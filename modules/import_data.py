@@ -77,13 +77,17 @@ def import_data_random(retain_pct,seed=333):
     
     return df, persons
 
-def import_data_standard():
+def import_data_standard(target='icd10h_code'):
     """
     Imports and processes data from multiple Excel files to create a consolidated DataFrame.
 
     Returns:
         pd.DataFrame: DataFrame containing columns from the source files along with additional processed columns.
     """
+    if target not in df.columns:
+        raise ValueError(
+            f"'{target}' is not one of the dataframe columns: {list(df.columns)}"
+        )
 
     df = icd_df[['tidy_cod','icd10h_code','dk1875_code','icd10h_description_english']]
     df = df.assign(
@@ -95,6 +99,6 @@ def import_data_standard():
         heiberg_code=lambda df: [heiberg.get(dk, np.nan) for dk in df['dk1875_code']]
     )
 
-    train_df = df[df.icd10h_code.notna()]
+    train_df = df[df[target].notna()]
 
     return train_df, df
