@@ -1,5 +1,98 @@
-import torch
+import math, torch
 import torch.nn as nn
+import torch.nn.functional as F
+
+
+class AttentionPool(nn.Module):
+    """Single-head additive attention → fixed-size sentence vector."""
+    def __init__(self, hidden_dim: int):
+        super().__init__()
+        self.W = nn.Linear(hidden_dim, hidden_dim, bias=False)
+        self.v = nn.Parameter(torch.randn(hidden_dim))
+
+    def forward(self, h):                    # h: (B, L, H)
+        scores = torch.tanh(self.W(h)) @ self.v   # (B, L)
+        weights = torch.softmax(scores, dim=1).unsqueeze(-1)
+        return (h * weights).sum(dim=1)      # (B, H)
+
+
+class CategoryClassifier(nn.Module):
+    """
+    Token indices  →  Embedding  →  Parallel CNNs (k = 2-5)
+                   →  concat + BiGRU  →  AttentionPool  →  MLP → logits
+    """
+    def __init__(
+        self,
+        vocab_size: int,
+        num_classes: int,
+        embed_dim: int = 256,
+        kernel_sizes: tuple[int, ...] = (2, 3, 4, 5),
+        num_filters: int = 128,
+        gru_hidden: int = 256,
+        gru_layers: int = 2,
+        dropout: float = 0.5,
+    ):
+        super().__init__()
+
+        # ── embeddings ────────────────────────────────────────────────────
+        self.embedding = nn.Embedding(vocab_size, embed_dim, padding_idx=0)
+
+        # ── multi-scale convolution stem (TextCNN) ────────────────────────
+        self.convs = nn.ModuleList([
+            nn.Conv1d(
+                in_channels=embed_dim,
+                out_channels=num_filters,
+                kernel_size=k,
+                padding="same",
+            )
+            for k in kernel_sizes
+        ])
+
+        # ── Bi-GRU encoder ────────────────────────────────────────────────
+        self.bigru = nn.GRU(
+            input_size=num_filters * len(kernel_sizes),
+            hidden_size=gru_hidden,
+            num_layers=gru_layers,
+            batch_first=True,
+            bidirectional=True,
+            dropout=0.2 if gru_layers > 1 else 0.0,
+        )
+
+        # ── Attention pooling & head ──────────────────────────────────────
+        self.attn = AttentionPool(gru_hidden * 2)
+        self.classifier = nn.Sequential(
+            nn.Dropout(dropout),
+            nn.Linear(gru_hidden * 2, gru_hidden * 2),
+            nn.GELU(),
+            nn.Dropout(dropout),
+            nn.Linear(gru_hidden * 2, num_classes),
+        )
+
+        # ── init ──────────────────────────────────────────────────────────
+        self.apply(self._init_weights)
+
+    @staticmethod
+    def _init_weights(m):
+        if isinstance(m, nn.Embedding):
+            nn.init.normal_(m.weight, mean=0, std=0.02)
+        elif isinstance(m, nn.Conv1d):
+            nn.init.kaiming_uniform_(m.weight, nonlinearity="relu")
+        elif isinstance(m, nn.Linear):
+            nn.init.xavier_uniform_(m.weight)
+            if m.bias is not None:
+                nn.init.zeros_(m.bias)
+
+    # ── forward ───────────────────────────────────────────────────────────
+    def forward(self, x):              # x: (B, L) int tokens
+        x = self.embedding(x)          # (B, L, E)
+        x = x.transpose(1, 2)          # (B, E, L) for Conv1d
+
+        feats = [F.gelu(conv(x)) for conv in self.convs]    # every (B, F, L)
+        x = torch.cat(feats, dim=1).transpose(1, 2)  
+
+        gru_out, _ = self.bigru(x)     # (B, L, 2H)
+        sent_vec = self.attn(gru_out)  # (B, 2H)
+        return self.classifier(sent_vec)
 
 class network_qpidgram(nn.Module):
     """A neural network model that takes combined tensor input and processes it using n-gram and word-based pathways."""
