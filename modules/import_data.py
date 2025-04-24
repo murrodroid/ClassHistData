@@ -96,12 +96,12 @@ def import_data_standard(target='icd10h_code'):
         heiberg_code=lambda df: [heiberg.get(dk, np.nan) for dk in df['dk1875_code']]
     )
     
+    df[['icd10h_category', 'icd10h_subcategory']] = (df['icd10h_code'].str.split('.', n=1, expand=True))
+    
     if target not in df.columns:
         raise ValueError(
             f"'{target}' is not one of the dataframe columns: {list(df.columns)}"
         )
-
-    df[['icd10h_category', 'icd10h_subcategory']] = (df['icd10h_code'].str.split('.', n=1, expand=True))
 
     train_df = df[df[target].notna()]
 
