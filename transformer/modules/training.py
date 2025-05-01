@@ -178,13 +178,6 @@ def train_model(
             torch.save(best_state, checkpoint_dir / "best.pt")
             print("⇢ New best model saved")
 
-            if logger:
-                logger.log_artifact(
-                    checkpoint_dir / "best.pt",
-                    name="best_model",
-                    type_="model",
-                )
-
         # store metrics in memory for plotting
         history["train_loss"].append(train_stats["loss"])
         history["val_loss"].append(val_stats["loss"])
@@ -192,6 +185,12 @@ def train_model(
         history["val_f1"].append(val_stats["f1"])
 
     if logger:
+        logger.log_artifact(
+            checkpoint_dir / "best.pt",
+            name="best_model",
+            type_="model",
+            aliases=["best", "latest"],
+        )
         logger.finish()
 
     return history
