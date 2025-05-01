@@ -16,6 +16,6 @@ def encode_labels(raw_labels: List[str]) -> Tuple[List[int], Dict[str, int], Dic
     """
     unique = sorted(set(raw_labels))              # stable order
     label2id = {lbl: idx for idx, lbl in enumerate(unique)}
-    id2label = {idx: lbl for lbl, idx in label2icd.items()}
+    id2label = {idx: lbl for lbl, idx in label2id.items()}
     encoded = [label2id[lbl] for lbl in raw_labels]
     return encoded, label2id, id2label
