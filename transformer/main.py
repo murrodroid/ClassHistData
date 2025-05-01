@@ -75,18 +75,21 @@ if logger:
 best_state = torch.load(ckpt_dir / "best.pt", map_location=device)
 model.load_state_dict(best_state["model_state"])
 
-report, cm, test_acc, test_f1 = evaluate(
+report, cm, acc1, acck, f1, top1_pred, topk_pred = evaluate(
     model,
     test_dl,
     device,
     id2label,
     reports_dir=reports_dir,
     logger=logger,
+    top_k=hyperparams["top_k"],
 )
 
-print("\n===== Test-set classification report =====\n")
+print(f"Top-1 accuracy  : {acc1:.3f}")
+print(f"Top-{hyperparams['top_k']} accuracy: {acck:.3f}")
+print(f"Weighted-F1     : {f1:.3f}\n")
+print("===== Test-set classification report =====\n")
 print(report)
-print(f"Test accuracy: {test_acc:.4f} | Test F1: {test_f1:.4f}")
 
 if logger:
     logger.log({"run_dir": str(run_dir)})

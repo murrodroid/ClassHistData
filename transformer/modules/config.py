@@ -10,8 +10,9 @@ hyperparams = dict(
     learning_rate = 3e-5,
     batch_size    = 16,
     num_epochs    = 64,
-    dropout_rate  = 0.55,
+    dropout_rate  = 0.65,
     max_length    = 256,
+    top_k         = 3,
 )
 
 # 📁  output locations ----------------------------------------------
