@@ -88,6 +88,9 @@ def get_dataloaders(
     """
     tokenizer = AutoTokenizer.from_pretrained(tokenizer_name, use_fast=True)
 
+    if tokenizer.pad_token is None:
+        tokenizer.pad_token = tokenizer.eos_token
+
     # 3a.  Build one dataset object -----------------------------------
     full_ds = TextExample(texts, labels)
 
@@ -118,4 +121,4 @@ def get_dataloaders(
     train_dl = make_loader(train_ds, shuffle=True)
     val_dl   = make_loader(val_ds,   shuffle=False)
     test_dl  = make_loader(test_ds,  shuffle=False)
-    return train_dl, val_dl, test_dl
+    return train_dl, val_dl, test_dl, tokenizer
