@@ -10,6 +10,7 @@ from modules.config        import (
 )
 from modules.set_seed       import set_seed
 from modules.utils          import return_device, encode_labels
+from modules.save_utils     import save_history
 from modules.data_import    import import_data
 from modules.dataloaders    import get_dataloaders
 from modules.training       import train_model
@@ -58,6 +59,11 @@ history = train_model(
     checkpoint_dir=ckpt_dir,    
     logger=logger,              
 )
+
+save_history(history, run_dir / "history.json")
+
+if logger:
+    logger.log_artifact(run_dir / "history.json", name="history", type_="metrics")
 
 best_state = torch.load(ckpt_dir / "best.pt", map_location=device)
 model.load_state_dict(best_state["model_state"])

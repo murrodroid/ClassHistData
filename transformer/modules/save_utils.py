@@ -52,8 +52,23 @@ def save_metrics(run_dir: Path, metrics: dict, fname: str = "metrics.json"):
         json.dump(metrics, fp, indent=2)
     print(f"✓ Metrics written to {path}")
 
-def save_history(run_dir: Path, history: dict, fname: str = "history.json"):
-    save_metrics(run_dir, history, fname)   # same routine
+def save_history(history: dict, path: Path) -> None:
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+
+    # Enrich with a timestamp – handy when you aggregate runs later
+    stamped = {
+        "saved_at": datetime.datetime.utcnow().isoformat(timespec="seconds") + "Z",
+        **history,
+    }
+
+    with path.open("w", encoding="utf-8") as f:
+        json.dump(stamped, f, indent=2)
+
+def load_history(path: Path) -> dict:
+    """Utility for later plotting or comparison."""
+    with Path(path).open(encoding="utf-8") as f:
+        return json.load(f)
 
 def plot_history(run_dir: Path, history: dict):
     """
