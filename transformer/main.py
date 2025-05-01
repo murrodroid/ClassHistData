@@ -57,3 +57,9 @@ history = train_model(
     num_epochs=hyperparams["num_epochs"],
     learning_rate=hyperparams["learning_rate"],
 )
+
+best = torch.load("checkpoints/best.pt")
+model.load_state_dict(best["model_state"])
+
+report, cm = evaluate(model, test_dl, device, id2label)
+print("\nTest-set report\n", report)
