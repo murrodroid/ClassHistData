@@ -7,6 +7,7 @@ from pathlib import Path
 from typing   import Dict, List, Optional
 
 import torch
+from torch import autocast
 from torch.optim            import AdamW
 from torch.nn.utils         import clip_grad_norm_
 from tqdm.auto              import tqdm
@@ -71,9 +72,10 @@ def run_epoch(
     for batch in loop:
         batch = {k: v.to(device) for k, v in batch.items()}
 
-        with torch.cuda.amp.autocast(enabled=scaler is not None):
-            out   = model(**batch)
-            loss  = out.loss
+        dtype = torch.bfloat16 if torch.cuda.is_bf16_supported() else torch.float16
+        with autocast(device_type="cuda", dtype=dtype, enabled=scaler is not None):
+            out    = model(**batch)
+            loss   = out.loss
             logits = out.logits
 
         if train:
@@ -127,9 +129,8 @@ def train_model(
     optimizer, scheduler = create_optimizer_and_scheduler(
         model, learning_rate, num_epochs, train_dl
     )
-    scaler = (
-        torch.cuda.amp.GradScaler() if (use_amp and torch.cuda.is_available()) else None
-    )
+    scaler = torch.amp.GradScaler(device_type="cuda") if (use_amp and torch.cuda.is_available()) else None
+
 
     history = {"train_loss": [], "val_loss": [], "val_acc": [], "val_f1": []}
     best_f1 = -1.0
