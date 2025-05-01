@@ -3,7 +3,7 @@ from typing import List, Dict, Tuple
 
 def return_device():
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    print(f'Using device: {device}')
+    print(f'▶ Using device: {device}')
     return device
 
 def encode_labels(raw_labels: List[str]) -> Tuple[List[int], Dict[str, int], Dict[int, str]]:
