@@ -9,6 +9,7 @@ from typing import List, Tuple, Dict, Optional
 import torch
 from torch.utils.data import Dataset, DataLoader, random_split
 from transformers import AutoTokenizer, PreTrainedTokenizerBase
+import numpy as np
 
 # ---------------------------------------------------------------------
 # 1.  Tiny plain-old-data container -----------------------------------
@@ -102,14 +103,16 @@ def get_dataloaders(
     collate_fn = make_collate_fn(tokenizer, max_length=max_length)
 
     # 3d.  Individual DataLoaders -------------------------------------
-    def make_loader(ds: Dataset, shuffle: bool) -> DataLoader:
+    def make_loader(ds, shuffle):
         return DataLoader(
             ds,
             batch_size=batch_size,
             shuffle=shuffle,
+            collate_fn=collate_fn,
             num_workers=num_workers,
             pin_memory=pin_memory,
-            collate_fn=collate_fn,
+            generator=g,                  
+            worker_init_fn=lambda w_id: np.random.seed(seed + w_id),
         )
 
     train_dl = make_loader(train_ds, shuffle=True)
