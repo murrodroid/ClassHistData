@@ -3,7 +3,7 @@ from pathlib import Path
 from datetime import datetime
 
 # ⚙️  core experiment parameters ------------------------------------
-model_name   = "meta-llama/Llama-3.2-1B"   # ← fixed the double “//”
+model_name   = "meta-llama/Llama-3.2-1B"
 target       = "icd10h_category"
 
 hyperparams = dict(
