@@ -1,7 +1,6 @@
-# ---------------------------------------------------------------
 from __future__ import annotations
 from pathlib import Path
-from datetime import datetime
+from datetime import datetime, timezone
 import json, yaml, torch, matplotlib.pyplot as plt
 
 def _time_stamp() -> str:
@@ -58,7 +57,7 @@ def save_history(history: dict, path: Path) -> None:
 
     # Enrich with a timestamp – handy when you aggregate runs later
     stamped = {
-        "saved_at": datetime.datetime.utcnow().isoformat(timespec="seconds") + "Z",
+        "saved_at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         **history,
     }
 
