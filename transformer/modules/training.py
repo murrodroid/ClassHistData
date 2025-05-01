@@ -129,7 +129,7 @@ def train_model(
     optimizer, scheduler = create_optimizer_and_scheduler(
         model, learning_rate, num_epochs, train_dl
     )
-    scaler = torch.amp.GradScaler(device_type="cuda") if (use_amp and torch.cuda.is_available()) else None
+    scaler = torch.amp.GradScaler(device) if (use_amp and torch.cuda.is_available()) else None
 
 
     history = {"train_loss": [], "val_loss": [], "val_acc": [], "val_f1": []}
