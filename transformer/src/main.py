@@ -15,19 +15,10 @@ from modules.utils import return_device, encode_labels
 from modules.dataloaders import get_dataloaders
 from modules.training import train_model
 from modules.set_seed import set_seed
+from modules.eval import evaluate
+from modules.config import hyperparams, model_name, target
 
-SEED = set_seed(42)
-
-model_name = 'meta-llama//Llama-3.2-1B'
-target = 'icd10h_category'
-
-# hyperparams
-hyperparams = {
-    'learning_rate': 0.0004,
-    'batch_size': 32,
-    'num_epochs': 64,
-    'dropout_rate': 0.55,
-}
+seed = set_seed(42)
 
 device = return_device()
 
@@ -42,7 +33,7 @@ train_dl, val_dl, test_dl = get_dataloaders(
     tokenizer_name=model_name,
     batch_size=hyperparams['batch_size'],
     max_length=512,
-    seed=SEED,
+    seed=seed,
 )
 
 config = AutoConfig.from_pretrained(
