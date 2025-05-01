@@ -18,6 +18,9 @@ from modules.eval           import evaluate
 from modules.logger_wandb   import WandBLogger    # façade—safe to drop
 
 seed = set_seed(wandb_cfg.get("seed", 42))
+print(f"▶ Using seed: {seed}")
+print(f"▶ Using model: {model_name}")
+print(f"▶ Using target: {target}")
 
 device = return_device()
 df, _ = import_data(target=target)
@@ -25,7 +28,7 @@ df, _ = import_data(target=target)
 texts  = df["tidy_cod"].tolist()
 labels_int, label2id, id2label = encode_labels(df[target].tolist())
 
-train_dl, val_dl, test_dl = get_dataloaders(
+train_dl, val_dl, test_dl, tokenizer = get_dataloaders(
     texts,
     labels_int,
     tokenizer_name=model_name,
@@ -33,6 +36,7 @@ train_dl, val_dl, test_dl = get_dataloaders(
     max_length=hyperparams["max_length"],
     seed=seed,
 )
+print(f'Dataloaders initialized: {len(train_dl)} train, {len(val_dl)} val, {len(test_dl)} test')
 
 config = AutoConfig.from_pretrained(
     model_name,
@@ -40,6 +44,7 @@ config = AutoConfig.from_pretrained(
     label2id=label2id,
     id2label=id2label,
     classifier_dropout=hyperparams["dropout_rate"],
+    pad_token_id=tokenizer.pad_token_id,
 )
 
 model = AutoModelForSequenceClassification.from_pretrained(
@@ -49,6 +54,7 @@ model = AutoModelForSequenceClassification.from_pretrained(
 
 logger = WandBLogger({**wandb_cfg, "hyperparams": hyperparams}, run_dir)
 
+print('Training model...')
 history = train_model(
     model,
     train_dl,
@@ -59,6 +65,7 @@ history = train_model(
     checkpoint_dir=ckpt_dir,    
     logger=logger,              
 )
+print('Training complete!')
 
 save_history(history, run_dir / "history.json")
 
