@@ -20,7 +20,7 @@ def evaluate(
     *,
     reports_dir: Path | None = None,
     logger: Optional[object] = None,     # e.g. WandBLogger
-    top_k: int = 3,
+    top_k: int = 1,
 ) -> Tuple[str, np.ndarray, float, float, float,
            List[str], List[List[str]]]:
     """

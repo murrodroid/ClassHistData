@@ -11,10 +11,10 @@ from torch import autocast
 from torch.optim            import AdamW
 from torch.nn.utils         import clip_grad_norm_
 from tqdm.auto              import tqdm
-from sklearn.metrics        import accuracy_score, f1_score
+from sklearn.metrics        import accuracy_score, f1_score, top_k_accuracy_score
 from transformers           import get_linear_schedule_with_warmup
 
-# ---------------------------------------------------------------
+
 def create_optimizer_and_scheduler(
     model,
     learning_rate: float,
@@ -50,7 +50,6 @@ def create_optimizer_and_scheduler(
     return optimizer, scheduler
 
 
-# ---------------------------------------------------------------
 def run_epoch(
     model,
     dataloader,
@@ -61,12 +60,13 @@ def run_epoch(
     train: bool,
     grad_clip: float,
     scaler: torch.cuda.amp.GradScaler | None,
+    top_k: int = 1,
 ) -> Dict[str, float]:
     """One full pass over `dataloader`."""
     model.train() if train else model.eval()
 
     total_loss, n_samples = 0.0, 0
-    preds_all, labels_all = [], []
+    preds_all, labels_all, logits_all = [], [], []
 
     loop = tqdm(dataloader, desc="train" if train else "eval", leave=False)
     for batch in loop:
@@ -76,7 +76,7 @@ def run_epoch(
         with autocast(device_type="cuda", dtype=dtype, enabled=scaler is not None):
             out    = model(**batch)
             loss   = out.loss
-            logits = out.logits
+            logits = out.logits                            # [B, C]
 
         if train:
             (scaler.scale(loss) if scaler else loss).backward()
@@ -95,20 +95,41 @@ def run_epoch(
             scheduler.step()
             optimizer.zero_grad()
 
-        # bookkeeping
+        # ── bookkeeping ───────────────────────────────────
         bs = batch["labels"].size(0)
         total_loss += loss.item() * bs
         n_samples  += bs
-        preds_all.extend(logits.argmax(dim=-1).detach().cpu())
-        labels_all.extend(batch["labels"].detach().cpu())
 
-    acc = accuracy_score(labels_all, preds_all)
+        preds_all .extend(logits.argmax(dim=-1).cpu())
+        labels_all.extend(batch["labels"].cpu())
+        logits_all.append(logits.detach().cpu().float())   # keep on CPU, fp32
+
+    # ── metrics ──────────────────────────────────────────
+    acc1 = accuracy_score(labels_all, preds_all)
+
+    logits_tensor = torch.vstack(logits_all)               # [N, C]
+    num_classes   = logits_tensor.shape[1]
+
+    acck = (
+        top_k_accuracy_score(
+            labels_all,
+            logits_tensor.numpy(),
+            k=top_k,
+            labels=list(range(num_classes)),               # <- explicit C classes
+        )
+        if top_k > 1 else acc1
+    )
+
     f1  = f1_score(labels_all, preds_all, average="weighted")
 
-    return {"loss": total_loss / n_samples, "acc": acc, "f1": f1}
+    return {
+        "loss": total_loss / n_samples,
+        "acc1": acc1,
+        "acck": acck,
+        "f1":   f1,
+    }
 
 
-# ---------------------------------------------------------------
 def train_model(
     model,
     train_dl,
@@ -121,6 +142,7 @@ def train_model(
     grad_clip: float = 1.0,
     use_amp: bool = True,
     logger: Optional[object] = None,      # e.g. WandBLogger
+    top_k: int = 1,
 ) -> Dict[str, List[float]]:
     """High-level loop that returns a history dict."""
     checkpoint_dir = Path(checkpoint_dir)
@@ -131,8 +153,14 @@ def train_model(
     )
     scaler = torch.amp.GradScaler(device) if (use_amp and torch.cuda.is_available()) else None
 
+    history = {
+    "train_loss": [],
+    "val_loss":   [],
+    "val_acc1":   [],
+    "val_acck":   [],
+    "val_f1":     [],
+    }
 
-    history = {"train_loss": [], "val_loss": [], "val_acc": [], "val_f1": []}
     best_f1 = -1.0
     best_state = None
 
@@ -141,28 +169,32 @@ def train_model(
 
         train_stats = run_epoch(
             model, train_dl, optimizer, scheduler, device,
-            train=True, grad_clip=grad_clip, scaler=scaler
+            train=True, grad_clip=grad_clip, scaler=scaler,
+            top_k=top_k,
         )
         val_stats = run_epoch(
             model, val_dl, optimizer, scheduler, device,
-            train=False, grad_clip=grad_clip, scaler=None
+            train=False, grad_clip=grad_clip, scaler=None,
+            top_k=top_k,
         )
 
         # console log
         print(
             f"train loss {train_stats['loss']:.4f} | "
             f"val loss {val_stats['loss']:.4f} | "
-            f"val F1 {val_stats['f1']:.4f}"
+            f"val F1 {val_stats['f1']:.4f} | "
+            f"val 1 acc {val_stats['acc1']:.4f} | "
+            f"val {top_k} acc {val_stats['acck']:.4f}"
         )
 
-        # wandb / external logger
         if logger:
             logger.log({
                 "epoch": epoch,
                 "train/loss": train_stats["loss"],
                 "val/loss":   val_stats["loss"],
-                "val/acc":    val_stats["acc"],
                 "val/f1":     val_stats["f1"],
+                "val/1_acc":  val_stats["acc1"],
+                f"val/{top_k}_acc": val_stats["acck"],
             }, step=epoch)
 
         # checkpoint on best val-F1
@@ -181,7 +213,8 @@ def train_model(
         # store metrics in memory for plotting
         history["train_loss"].append(train_stats["loss"])
         history["val_loss"].append(val_stats["loss"])
-        history["val_acc"].append(val_stats["acc"])
+        history["val_acc1"].append(val_stats["acc1"])
+        history["val_acck"].append(val_stats["acck"])
         history["val_f1"].append(val_stats["f1"])
 
     if logger:
@@ -189,7 +222,6 @@ def train_model(
             checkpoint_dir / "best.pt",
             name="best_model",
             type_="model",
-            aliases=["best", "latest"],
         )
         logger.finish()
 

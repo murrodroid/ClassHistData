@@ -63,7 +63,8 @@ history = train_model(
     num_epochs=hyperparams["num_epochs"],
     learning_rate=hyperparams["learning_rate"],
     checkpoint_dir=ckpt_dir,    
-    logger=logger,              
+    logger=logger,
+    top_k=hyperparams["top_k"],              
 )
 print('Training complete!')
 
