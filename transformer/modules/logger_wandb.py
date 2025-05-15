@@ -21,9 +21,17 @@ class WandBLogger:
     def log(self, metrics: dict, step: int | None = None):
         self.run.log(metrics, step=step)
 
-    def log_artifact(self, path: Path, name: str, type_: str):
-        art = wandb.Artifact(name, type=type_)
-        art.add_file(str(path))
+    
+    def log_artifact(self, path, *, name: str, type_: str = "model"):
+
+        art = wandb.Artifact(name=name, type=type_)
+        path = Path(path)
+
+        if path.is_dir():
+            art.add_dir(str(path))                  # folder → add_dir ✅
+        else:
+            art.add_file(str(path))                 # single file → add_file ✅
+
         self.run.log_artifact(art)
 
     def finish(self):

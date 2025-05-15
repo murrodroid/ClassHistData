@@ -13,7 +13,8 @@ from torch.nn.utils         import clip_grad_norm_
 from tqdm.auto              import tqdm
 from sklearn.metrics        import accuracy_score, f1_score, top_k_accuracy_score
 from transformers           import get_linear_schedule_with_warmup
-
+from transformers           import PreTrainedTokenizer
+from .save_utils            import save_best_checkpoint
 
 def create_optimizer_and_scheduler(
     model,
@@ -131,51 +132,49 @@ def run_epoch(
 
 
 def train_model(
-    model,
+    model: nn.Module,
     train_dl,
     val_dl,
     device,
     *,
     num_epochs: int,
     learning_rate: float,
-    checkpoint_dir: Path,
+    checkpoint_dir: Path,                         # can still point to “…/checkpoints”
     grad_clip: float = 1.0,
     use_amp: bool = True,
-    logger: Optional[object] = None,      # e.g. WandBLogger
+    logger: Optional[object] = None,              # e.g. WandBLogger
+    tokenizer: Optional[PreTrainedTokenizer] = None,  # NEW ★
     top_k: int = 1,
 ) -> Dict[str, List[float]]:
-    """High-level loop that returns a history dict."""
-    checkpoint_dir = Path(checkpoint_dir)
-    checkpoint_dir.mkdir(parents=True, exist_ok=True)
 
+    # ── figure out the “run root” ───────────────────────────── #
+    run_dir = Path(checkpoint_dir)
+    if run_dir.name == "checkpoints":             # keep legacy configs working
+        run_dir = run_dir.parent
+    run_dir.mkdir(parents=True, exist_ok=True)
+
+    # ── optimiser / scheduler etc. ──────────────────────────── #
     optimizer, scheduler = create_optimizer_and_scheduler(
         model, learning_rate, num_epochs, train_dl
     )
-    scaler = torch.amp.GradScaler(device) if (use_amp and torch.cuda.is_available()) else None
+    scaler = torch.amp.GradScaler(enabled=use_amp and torch.cuda.is_available())
 
-    history = {
-    "train_loss": [],
-    "val_loss":   [],
-    "val_acc1":   [],
-    "val_acck":   [],
-    "val_f1":     [],
-    }
+    history = {k: [] for k in
+               ("train_loss", "val_loss", "val_acc1", "val_acck", "val_f1")}
 
-    best_f1 = -1.0
-    best_state = None
+    best_f1  = -1.0
 
+    # ───────────────────────── training loop ────────────────── #
     for epoch in range(1, num_epochs + 1):
         print(f"\n— Epoch {epoch}/{num_epochs} —")
 
         train_stats = run_epoch(
             model, train_dl, optimizer, scheduler, device,
-            train=True, grad_clip=grad_clip, scaler=scaler,
-            top_k=top_k,
+            train=True, grad_clip=grad_clip, scaler=scaler, top_k=top_k,
         )
         val_stats = run_epoch(
             model, val_dl, optimizer, scheduler, device,
-            train=False, grad_clip=grad_clip, scaler=None,
-            top_k=top_k,
+            train=False, grad_clip=grad_clip, scaler=None, top_k=top_k,
         )
 
         # console log
@@ -188,41 +187,44 @@ def train_model(
         )
 
         if logger:
-            logger.log({
-                "epoch": epoch,
-                "train/loss": train_stats["loss"],
-                "val/loss":   val_stats["loss"],
-                "val/f1":     val_stats["f1"],
-                "val/1_acc":  val_stats["acc1"],
+            logger.log({                       # keeps WandB charts identical
+                "epoch":       epoch,
+                "train/loss":  train_stats["loss"],
+                "val/loss":    val_stats["loss"],
+                "val/f1":      val_stats["f1"],
+                "val/1_acc":   val_stats["acc1"],
                 f"val/{top_k}_acc": val_stats["acck"],
             }, step=epoch)
 
-        # checkpoint on best val-F1
+        # ── on-improved F1: write *both* state-dict + HF bundle ── #
         if val_stats["f1"] > best_f1:
             best_f1 = val_stats["f1"]
-            best_state = {
-                "epoch": epoch,
-                "model_state": model.state_dict(),
+
+            state = {
+                "epoch":           epoch,
+                "f1":              best_f1,
+                "model_state":     model.state_dict(),
                 "optimizer_state": optimizer.state_dict(),
                 "scheduler_state": scheduler.state_dict(),
-                "f1": best_f1,
             }
-            torch.save(best_state, checkpoint_dir / "best.pt")
-            print("⇢ New best model saved")
 
-        # store metrics in memory for plotting
+            save_best_checkpoint(                     # ← our new helper
+                run_dir,
+                state,
+                model=model,
+                tokenizer=tokenizer,                  # None ➜ just state-dict
+            )
+            if logger:
+                # log artefact while the run is **still active**
+                logger.log_artifact(run_dir / "model",
+                                   name=f"model_epoch{epoch}", type_="model")
+
+        # ── bookkeeping for later plots ───────────────────────── #
         history["train_loss"].append(train_stats["loss"])
         history["val_loss"].append(val_stats["loss"])
         history["val_acc1"].append(val_stats["acc1"])
         history["val_acck"].append(val_stats["acck"])
         history["val_f1"].append(val_stats["f1"])
 
-    if logger:
-        logger.log_artifact(
-            checkpoint_dir / "best.pt",
-            name="best_model",
-            type_="model",
-        )
-        logger.finish()
-
+    # Let the caller decide when to finish the logger.
     return history

@@ -62,7 +62,8 @@ history = train_model(
     device=device,
     num_epochs=hyperparams["num_epochs"],
     learning_rate=hyperparams["learning_rate"],
-    checkpoint_dir=ckpt_dir,    
+    checkpoint_dir=ckpt_dir,
+    tokenizer=tokenizer,    
     logger=logger,
     top_k=hyperparams["top_k"],              
 )

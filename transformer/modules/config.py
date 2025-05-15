@@ -3,16 +3,16 @@ from pathlib import Path
 from datetime import datetime
 
 # ⚙️  core experiment parameters ------------------------------------
-model_name   = "emilyalsentzer/Bio_ClinicalBERT"
+model_name   = "Atgenomix/icd_10_sentence_transformer_128_dim_model"
 target       = "icd10h_category"
 
 hyperparams = dict(
-    learning_rate = 3e-5,
+    learning_rate = 2e-5,
     batch_size    = 16,
     num_epochs    = 64,
-    dropout_rate  = 0.65,
+    dropout_rate  = 0.55,
     max_length    = 256,
-    top_k         = 3,
+    top_k         = 2,
 )
 
 # 📁  output locations ----------------------------------------------

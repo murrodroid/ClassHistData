@@ -1,41 +1,67 @@
+# inference.py
 from __future__ import annotations
-from typing import List
 from pathlib import Path
-from .utils import return_device
-import torch
-from transformers import AutoTokenizer, AutoModelForSequenceClassification
+from typing import List
 
+import torch
+from transformers import (
+    AutoTokenizer,
+    AutoConfig,
+    AutoModelForSequenceClassification,
+)
+
+# -----------------------------------------------------------
 class ModelPredictor:
     def __init__(
         self,
-        model_path: str | Path,
+        run_dir: str | Path,         # e.g. runs/Bio_ClinicalBERT_20250515_215342
         *,
-        device: str = return_device(),
+        device: str | torch.device | None = None,
         top_k: int = 1,
     ):
-        self.tokenizer = AutoTokenizer.from_pretrained(model_path)
-        self.model     = AutoModelForSequenceClassification.from_pretrained(model_path).to(device).eval()
-        self.device    = device
-        self.top_k     = top_k
-        self.id2label  = self.model.config.id2label
+        run_dir = Path(run_dir)
+        device = device or ("cuda" if torch.cuda.is_available() else "cpu")
 
-    def predict_single(self, text: str) -> str | List[str]:
-        return self.predict_batch([text])[0]
+        # --- tokenizer ----------------------------------------------------
+        self.tokenizer = AutoTokenizer.from_pretrained(run_dir.parent)  
+        # ^ points to the *base* model folder so your special tokens match.
 
-    def predict_batch(self, texts: List[str]) -> List[str] | List[List[str]]:
+        # --- model body & label maps --------------------------------------
+        cfg = AutoConfig.from_pretrained(
+            run_dir.parent,                       # same base model
+            id2label=run_dir.joinpath("config.json").read_text() and None
+        )
+        self.model = AutoModelForSequenceClassification.from_config(cfg)
+
+        state = torch.load(run_dir / "checkpoints" / "best.pt", map_location="cpu")
+        # unwrap if you saved {"model_state": ...}
+        if isinstance(state, dict) and "model_state" in state:
+            state = state["model_state"]
+        self.model.load_state_dict(state)
+        self.model.to(device).eval()
+
+        self.id2label = cfg.id2label
+        self.device   = device
+        self.top_k    = top_k
+
+    # -----------------------------------------------------------
+    @torch.inference_mode()
+    def _forward(self, texts: List[str]):
         enc = self.tokenizer(
             texts,
             truncation=True,
             padding=True,
-            return_tensors="pt",
             max_length=512,
+            return_tensors="pt",
         ).to(self.device)
+        return self.model(**enc).logits       # [B, C]
 
-        with torch.inference_mode():
-            logits = self.model(**enc).logits   # [B, C]
-
-        topk_ids = logits.topk(self.top_k, dim=1).indices.cpu().tolist()
+    def predict_batch(self, texts: List[str]):
+        logits = self._forward(texts)
+        topk = logits.topk(self.top_k, dim=1).indices.cpu().tolist()
         if self.top_k == 1:
-            return [self.id2label[i[0]] for i in topk_ids]
-        else:
-            return [[self.id2label[j] for j in row] for row in topk_ids]
+            return [self.id2label[i[0]] for i in topk]
+        return [[self.id2label[j] for j in row] for row in topk]
+
+    def predict_single(self, text: str):
+        return self.predict_batch([text])[0]
