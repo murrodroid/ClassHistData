@@ -1,6 +1,7 @@
 from __future__ import annotations
 from typing import List
 from pathlib import Path
+from .utils import return_device
 import torch
 from transformers import AutoTokenizer, AutoModelForSequenceClassification
 
@@ -9,7 +10,7 @@ class ModelPredictor:
         self,
         model_path: str | Path,
         *,
-        device: str = "cuda" if torch.cuda.is_available() else "cpu",
+        device: str = return_device(),
         top_k: int = 1,
     ):
         self.tokenizer = AutoTokenizer.from_pretrained(model_path)
