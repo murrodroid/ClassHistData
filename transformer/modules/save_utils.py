@@ -10,7 +10,7 @@ def create_run_dir(root: str | Path = "runs") -> Path:
     """
     Makes  runs/20250501_093422/  and returns the Path.
     """
-    run_dir = Path(root) / _time_stamp()
+    run_dir = Path(__file__).resolve().parent.parent / root / _time_stamp()
     run_dir.mkdir(parents=True, exist_ok=False)
     return run_dir
 
