@@ -132,7 +132,7 @@ def run_epoch(
 
 
 def train_model(
-    model: nn.Module,
+    model: torch.nn.Module,
     train_dl,
     val_dl,
     device,
