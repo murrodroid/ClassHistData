@@ -1,2 +1,3 @@
 ﻿datasets/KBHBegravelser_1861-1940_cleaned.csv
 transformer/modules/__pycache__
+runs
