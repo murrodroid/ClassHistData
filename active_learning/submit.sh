@@ -2,7 +2,7 @@
 
 # ---------------- LSF directives ----------------
 #BSUB -q gpua100                       # queue/partition (check if a GPU queue is required)
-#BSUB -W 04:00                      # wall-time hh:mm
+#BSUB -W 00:30                      # wall-time hh:mm
 #BSUB -n 4                         # CPU cores
 #BSUB -R "span[hosts=1]"           # keep all cores on one node
 #BSUB -R "select[gpu80gb]"
@@ -22,7 +22,7 @@ set -e
 module load cuda/11.8
 source /zhome/0e/9/205681/miniconda3/etc/profile.d/conda.sh
 conda activate ALenv
-              # if your code needs the CUDA module
+
 nvidia-smi
 export PYTORCH_CUDA_ALLOC_CONF=max_split_size_mb:2048
 

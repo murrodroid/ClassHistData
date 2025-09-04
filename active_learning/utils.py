@@ -2,6 +2,14 @@ from sklearn.model_selection import train_test_split
 from config import config
 import numpy as np
 import re
+import torch
+from torch.utils.data import TensorDataset, DataLoader
+
+
+def _fixed_test_loader(X, y, idx, bs):
+    Xi = torch.as_tensor(X[idx]).float()
+    yi = torch.as_tensor(y[idx]).long()
+    return DataLoader(TensorDataset(Xi, yi), batch_size=bs, shuffle=False)
 
 def labeled_unlabeled_test_split(
     df,
