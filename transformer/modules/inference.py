@@ -22,22 +22,23 @@ class ModelPredictor:
         run_dir = Path(run_dir)
         device = device or ("cuda" if torch.cuda.is_available() else "cpu")
 
-        # --- tokenizer ----------------------------------------------------
-        self.tokenizer = AutoTokenizer.from_pretrained(run_dir.parent)  
-        # ^ points to the *base* model folder so your special tokens match.
+        model_dir = run_dir / "model"
 
-        # --- model body & label maps --------------------------------------
-        cfg = AutoConfig.from_pretrained(
-            run_dir.parent,                       # same base model
-            id2label=run_dir.joinpath("config.json").read_text() and None
-        )
-        self.model = AutoModelForSequenceClassification.from_config(cfg)
+        if model_dir.exists():
+            self.tokenizer = AutoTokenizer.from_pretrained(model_dir)
+            self.model     = AutoModelForSequenceClassification.from_pretrained(model_dir)
+            cfg            = self.model.config
+        else:                                        # 🕰 legacy runs
+            base_dir       = run_dir.parent
+            self.tokenizer = AutoTokenizer.from_pretrained(base_dir)
+            cfg            = AutoConfig.from_pretrained(base_dir)
+            self.model     = AutoModelForSequenceClassification.from_config(cfg)
 
-        state = torch.load(run_dir / "checkpoints" / "best.pt", map_location="cpu")
-        # unwrap if you saved {"model_state": ...}
-        if isinstance(state, dict) and "model_state" in state:
-            state = state["model_state"]
-        self.model.load_state_dict(state)
+            state = torch.load(run_dir / "checkpoints" / "best.pt", map_location="cpu")
+            if isinstance(state, dict) and "model_state" in state:
+                state = state["model_state"]
+            self.model.load_state_dict(state)
+
         self.model.to(device).eval()
 
         self.id2label = cfg.id2label

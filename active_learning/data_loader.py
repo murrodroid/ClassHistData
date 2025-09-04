@@ -3,7 +3,7 @@ import torch
 from torch.utils.data import Dataset, DataLoader, Subset
 from sklearn.feature_extraction import FeatureHasher
 
-def build_features(df, target_col='tidy_cod', label_col='label', hash_dim=1<<16):
+def build_features(df, target_col='tidy_cod', label_col='icd10h_category', hash_dim=1<<16):
     token_cols = [c for c in df.columns if c.startswith(f'{target_col}__')]
     tokens = df[token_cols].apply(lambda r: sum(r.tolist(), []), axis=1).tolist()
     X = FeatureHasher(n_features=hash_dim, input_type='string', alternate_sign=False).transform(tokens)

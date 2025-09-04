@@ -6,7 +6,6 @@ path2 = './datasets/CHILDCAT 032024.xlsx'
 path3 = './datasets/INFANTCAT 082024.xlsx'
 path4 = './datasets/HISTCAT 082024.xlsx'
 path5 = './datasets/heiberg.xlsx'
-path6 = './datasets/KBHBegravelser_1861-1940_cleaned.csv'
 
 icd_df = pd.read_excel(path1)
 icd_df.columns = icd_df.columns.str.lower().str.replace(' ', '')
