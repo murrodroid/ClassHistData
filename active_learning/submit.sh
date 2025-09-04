@@ -2,7 +2,7 @@
 
 # ---------------- LSF directives ----------------
 #BSUB -q gpua100                       # queue/partition (check if a GPU queue is required)
-#BSUB -W 00:30                      # wall-time hh:mm
+#BSUB -W 02:00                      # wall-time hh:mm
 #BSUB -n 4                         # CPU cores
 #BSUB -R "span[hosts=1]"           # keep all cores on one node
 #BSUB -R "select[gpu80gb]"

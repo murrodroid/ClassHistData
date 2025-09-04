@@ -14,6 +14,13 @@ from tqdm.auto import tqdm
 import numpy as np 
 import json
 
+try:
+    from torch.cuda.amp import autocast as _autocast_cuda, GradScaler as _GradScaler
+    def _amp_autocast(enabled): return _autocast_cuda(enabled=enabled)
+except Exception:
+    from torch.amp import autocast as _autocast_generic, GradScaler as _GradScaler
+    def _amp_autocast(enabled): return _autocast_generic(device_type='cuda', enabled=enabled)
+
 
 def _assert_idx_invariants(di):
     X, _, _ = get_features()
@@ -23,10 +30,17 @@ def _assert_idx_invariants(di):
 
 def train_model(data_idx, network=net, config=config, verbose=False):
     set_seed(config.get('seed', 42))
+    torch.backends.cudnn.benchmark = True
+    try:
+        torch.set_float32_matmul_precision('high')
+    except Exception:
+        pass
+
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     X, y, classes = get_features()
     validate_indices(data_idx, X.shape[0])
-    train_loader, _, _ = make_loaders(X, y, data_idx, batch_size=config.get('batch_size'), seed=config.get('seed'))
+
+    train_loader, _, _ = make_loaders(X, y, data_idx, config=config)
 
     model = network(
         input_dim=X.shape[1],
@@ -42,23 +56,23 @@ def train_model(data_idx, network=net, config=config, verbose=False):
     loss_fn = nn.CrossEntropyLoss()
     epochs = config.get('epochs')
 
+    use_amp = bool(config.get('mixed_precision', False)) and device.type == 'cuda'
+    scaler = _GradScaler(enabled=use_amp)
+
     for e in range(epochs):
         model.train()
         loop = tqdm(train_loader, desc=f'epoch {e+1}/{epochs}', leave=False) if verbose else train_loader
-        seen, loss_sum = 0, 0.0
         for xb, yb in loop:
             xb, yb = xb.to(device).float(), yb.to(device)
-            opt.zero_grad()
-            loss = loss_fn(model(xb), yb)
-            loss.backward()
-            opt.step()
-            bs = yb.size(0)
-            seen += bs
-            loss_sum += loss.item() * bs
-            if verbose:
-                loop.set_postfix(avg_loss=f'{loss_sum/seen:.4f}')
-    return model
+            opt.zero_grad(set_to_none=True)
+            with torch.cuda.amp.autocast(enabled=use_amp):
+                logits = model(xb)
+                loss = loss_fn(logits, yb)
+            scaler.scale(loss).backward()
+            scaler.step(opt)
+            scaler.update()
 
+    return model
 
 def train_committee(data_idx,network=net,config=config):
     base_seed = config.get('seed', 42)
@@ -70,7 +84,7 @@ def test_models(models, data_idx, config=config, k=None, return_both=True, fixed
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     X, y, _ = get_features()
     if fixed_test_idx is None:
-        _, test_loader, _ = make_loaders(X, y, data_idx, batch_size=config.get('batch_size'), seed=config['seed'])
+        _, test_loader, _ = make_loaders(X, y, data_idx, config=config)
     else:
         test_loader = _fixed_test_loader(X, y, fixed_test_idx, config.get('batch_size'))
     K = int(k if k is not None else config.get('top_k', 1))
