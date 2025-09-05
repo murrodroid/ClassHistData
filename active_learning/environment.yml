@@ -1,21 +1,15 @@
 name: ALenv
 channels:
-  - pytorch
-  - nvidia
   - conda-forge
+  - defaults
 dependencies:
   - python=3.10
-  - pytorch=2.3.*
-  - torchvision
-  - torchaudio
-  - pytorch-cuda=11.8
+  - pytorch
   - numpy
-  - scipy
-  - scikit-learn
   - pandas
+  - scikit-learn
+  - scipy
   - matplotlib
-  - seaborn
   - tqdm
-  - pip
-  - pip:
-      - modAL
+  - openpyxl
+  - modal

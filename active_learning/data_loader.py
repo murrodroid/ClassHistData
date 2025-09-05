@@ -3,6 +3,8 @@ import torch
 from torch.utils.data import Dataset, DataLoader, Subset
 from sklearn.feature_extraction import FeatureHasher
 from config import config
+import random
+
 
 def build_features(df, target_col='tidy_cod', label_col='icd10h_category', hash_dim=1<<16):
     token_cols = [c for c in df.columns if c.startswith(f'{target_col}__')]
@@ -24,20 +26,20 @@ class HashedCSRDataset(Dataset):
         y = torch.tensor(self.y[i], dtype=torch.long)
         return x, y
 
-def make_loaders(X, y, data_idx, config=config):
+def make_loaders(X, y, data_idx, config):
     g = torch.Generator().manual_seed(int(config.get('seed', 42)))
     ds = HashedCSRDataset(X, y)
 
     idx_train = list(data_idx['labeled'])
-    idx_test = list(data_idx['test'])
+    idx_test  = list(data_idx['test'])
     n = len(ds)
     if idx_train and (min(idx_train) < 0 or max(idx_train) >= n):
         raise IndexError("train indices out of range")
     if idx_test and (min(idx_test) < 0 or max(idx_test) >= n):
         raise IndexError("test indices out of range")
 
-    train_ds = torch.utils.data.Subset(ds, idx_train)
-    test_ds = torch.utils.data.Subset(ds, idx_test)
+    train_ds = Subset(ds, idx_train)
+    test_ds  = Subset(ds, idx_test)
 
     bs = int(config.get('batch_size', 128))
     num_workers = int(config.get('dataloader_workers', 0))
@@ -60,10 +62,10 @@ def make_loaders(X, y, data_idx, config=config):
             prefetch_factor=int(prefetch_factor) if prefetch_factor is not None else 2,
         )
 
-    train_loader = torch.utils.data.DataLoader(
+    train_loader = DataLoader(
         train_ds, batch_size=bs, shuffle=True, generator=g, **dl_common
     )
-    test_loader = torch.utils.data.DataLoader(
+    test_loader = DataLoader(
         test_ds, batch_size=test_bs, shuffle=False, **dl_common
     )
     return train_loader, test_loader, ds
