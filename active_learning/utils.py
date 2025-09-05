@@ -3,14 +3,41 @@ from config import config
 import numpy as np
 import re
 import torch
-from torch.utils.data import TensorDataset, DataLoader
+from torch.utils.data import TensorDataset, DataLoader, Subset
+import random
 
 
-def _fixed_test_loader(X, y, idx, bs):
-    Xi = torch.as_tensor(X[idx]).float()
-    yi = torch.as_tensor(y[idx]).long()
-    return DataLoader(TensorDataset(Xi, yi), batch_size=bs, shuffle=False)
+def _fixed_test_loader(X, y, idx, config):
+    from data_loader import HashedCSRDataset  # local import to avoid cycles
 
+    ds = HashedCSRDataset(X, y)
+    test_idx = [int(i) for i in idx]
+    n = len(ds)
+    if test_idx and (min(test_idx) < 0 or max(test_idx) >= n):
+        raise IndexError("fixed_test_idx out of range")
+
+    test_ds = Subset(ds, test_idx)
+
+    num_workers = int(config.get('dataloader_workers', 0))
+    pin_memory = bool(config.get('pin_memory', False))
+    prefetch_factor = config.get('prefetch_factor', 2)
+    persistent_workers = bool(config.get('persistent_workers', num_workers > 0))
+    bs = int(config.get('test_batch_size', max(int(config.get('batch_size', 128)), 2*int(config.get('batch_size', 128)))))
+
+    def _seed_worker(worker_id):
+        s = int(config.get('seed', 42)) + worker_id
+        random.seed(s); np.random.seed(s); torch.manual_seed(s)
+
+    dl_common = dict(num_workers=num_workers, pin_memory=pin_memory)
+    if num_workers > 0:
+        dl_common.update(
+            worker_init_fn=_seed_worker,
+            persistent_workers=persistent_workers,
+            prefetch_factor=int(prefetch_factor) if prefetch_factor is not None else 2,
+        )
+
+    return DataLoader(test_ds, batch_size=bs, shuffle=False, **dl_common)
+    
 def labeled_unlabeled_test_split(
     df,
     y=None,

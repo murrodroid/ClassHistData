@@ -16,11 +16,11 @@ config = dict(
     # active learning
     passive_committee = True,
     rounds = 400,
-    committee_size = 7,
+    committee_size = 5,
     query_batch_size = 3,
     # training hyper-parameters
     epochs = 16,
-    batch_size = 4096,
+    batch_size = 8192,
     dropout_rate = 0.5,
     lr = 1.3005e-3,
     weight_decay = 1e-5,
@@ -33,4 +33,7 @@ config = dict(
     dataloader_workers = 4, 
     pin_memory = True,
     prefetch_factor = 2,
+    # wandb integration
+    wandb_mode = 'online',
+	wandb_project = 'active-learning-conference',
 )

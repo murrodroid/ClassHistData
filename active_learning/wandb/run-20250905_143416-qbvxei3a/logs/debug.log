@@ -1,0 +1,56 @@
+2025-09-05 14:34:16,676 INFO    MainThread:682459 [wandb_setup.py:_flush():81] Current SDK version is 0.21.3
+2025-09-05 14:34:16,677 INFO    MainThread:682459 [wandb_setup.py:_flush():81] Configure stats pid to 682459
+2025-09-05 14:34:16,677 INFO    MainThread:682459 [wandb_setup.py:_flush():81] Loading settings from /zhome/0e/9/205681/.config/wandb/settings
+2025-09-05 14:34:16,677 INFO    MainThread:682459 [wandb_setup.py:_flush():81] Loading settings from /zhome/0e/9/205681/ClassHistData/active_learning/wandb/settings
+2025-09-05 14:34:16,677 INFO    MainThread:682459 [wandb_setup.py:_flush():81] Loading settings from environment variables
+2025-09-05 14:34:16,677 INFO    MainThread:682459 [wandb_init.py:setup_run_log_directory():686] Logging user logs to /zhome/0e/9/205681/ClassHistData/active_learning/wandb/run-20250905_143416-qbvxei3a/logs/debug.log
+2025-09-05 14:34:16,677 INFO    MainThread:682459 [wandb_init.py:setup_run_log_directory():687] Logging internal logs to /zhome/0e/9/205681/ClassHistData/active_learning/wandb/run-20250905_143416-qbvxei3a/logs/debug-internal.log
+2025-09-05 14:34:16,677 INFO    MainThread:682459 [wandb_init.py:init():813] calling init triggers
+2025-09-05 14:34:16,677 INFO    MainThread:682459 [wandb_init.py:init():818] wandb.init called with sweep_config: {}
+config: {'learning_types': ['passive_random', 'passive_ordered', 'active_random', 'active_ordered'], 'labeled_size': 0.05, 'test_size': 0.2, 'token_types': [{'method': 'char', 'ngram': 3}, {'method': 'char', 'ngram': 5}], 'top_k': 3, 'target_col': 'tidy_cod', 'label_col': 'icd10h_category', 'hash_dim': 65536, 'seed': 333, 'passive_committee': True, 'rounds': 400, 'committee_size': 5, 'query_batch_size': 3, 'epochs': 16, 'batch_size': 4096, 'dropout_rate': 0.5, 'lr': 0.0013005, 'weight_decay': 1e-05, 'hidden': 512, 'num_blocks': 2, 'expansion': 2, 'input_log1p': True, 'mixed_precision': True, 'dataloader_workers': 4, 'pin_memory': True, 'prefetch_factor': 2, 'wandb_mode': 'online', 'wandb_project': 'active-learning-conference', '_wandb': {}}
+2025-09-05 14:34:16,677 INFO    MainThread:682459 [wandb_init.py:init():854] starting backend
+2025-09-05 14:34:17,104 INFO    MainThread:682459 [wandb_init.py:init():857] sending inform_init request
+2025-09-05 14:34:17,120 INFO    MainThread:682459 [wandb_init.py:init():865] backend started and connected
+2025-09-05 14:34:17,123 INFO    MainThread:682459 [wandb_init.py:init():936] updated telemetry
+2025-09-05 14:34:17,208 INFO    MainThread:682459 [wandb_init.py:init():960] communicating run to backend with 90.0 second timeout
+2025-09-05 14:34:17,828 INFO    MainThread:682459 [wandb_init.py:init():1011] starting run threads in backend
+2025-09-05 14:34:18,179 INFO    MainThread:682459 [wandb_run.py:_console_start():2494] atexit reg
+2025-09-05 14:34:18,180 INFO    MainThread:682459 [wandb_run.py:_redirect():2342] redirect: wrap_raw
+2025-09-05 14:34:18,180 INFO    MainThread:682459 [wandb_run.py:_redirect():2411] Wrapping output streams.
+2025-09-05 14:34:18,180 INFO    MainThread:682459 [wandb_run.py:_redirect():2434] Redirects installed.
+2025-09-05 14:34:18,186 INFO    MainThread:682459 [wandb_init.py:init():1057] run started, returning control to user process
+2025-09-05 15:03:27,103 INFO    wandb-AsyncioManager-main:682459 [service_client.py:_forward_responses():84] Reached EOF.
+2025-09-05 15:03:27,104 INFO    wandb-AsyncioManager-main:682459 [mailbox.py:close():137] Closing mailbox, abandoning 1 handles.
+2025-09-05 15:03:27,141 ERROR   wandb-AsyncioManager-main:682459 [asyncio_manager.py:fn_wrap_exceptions():183] Uncaught exception in run_soon callback.
+Traceback (most recent call last):
+  File "/zhome/0e/9/205681/miniconda3/envs/ALenv/lib/python3.10/site-packages/wandb/sdk/lib/asyncio_manager.py", line 181, in fn_wrap_exceptions
+    await fn()
+  File "/zhome/0e/9/205681/miniconda3/envs/ALenv/lib/python3.10/site-packages/wandb/sdk/lib/service/service_client.py", line 65, in _send_server_request
+    await self._writer.drain()
+  File "/zhome/0e/9/205681/miniconda3/envs/ALenv/lib/python3.10/asyncio/streams.py", line 371, in drain
+    await self._protocol._drain_helper()
+  File "/zhome/0e/9/205681/miniconda3/envs/ALenv/lib/python3.10/asyncio/streams.py", line 167, in _drain_helper
+    raise ConnectionResetError('Connection lost')
+ConnectionResetError: Connection lost
+2025-09-05 15:03:27,161 ERROR   wandb-AsyncioManager-main:682459 [asyncio_manager.py:fn_wrap_exceptions():183] Uncaught exception in run_soon callback.
+Traceback (most recent call last):
+  File "/zhome/0e/9/205681/miniconda3/envs/ALenv/lib/python3.10/site-packages/wandb/sdk/lib/asyncio_manager.py", line 181, in fn_wrap_exceptions
+    await fn()
+  File "/zhome/0e/9/205681/miniconda3/envs/ALenv/lib/python3.10/site-packages/wandb/sdk/lib/service/service_client.py", line 65, in _send_server_request
+    await self._writer.drain()
+  File "/zhome/0e/9/205681/miniconda3/envs/ALenv/lib/python3.10/asyncio/streams.py", line 371, in drain
+    await self._protocol._drain_helper()
+  File "/zhome/0e/9/205681/miniconda3/envs/ALenv/lib/python3.10/asyncio/streams.py", line 167, in _drain_helper
+    raise ConnectionResetError('Connection lost')
+ConnectionResetError: Connection lost
+2025-09-05 15:03:27,161 ERROR   wandb-AsyncioManager-main:682459 [asyncio_manager.py:fn_wrap_exceptions():183] Uncaught exception in run_soon callback.
+Traceback (most recent call last):
+  File "/zhome/0e/9/205681/miniconda3/envs/ALenv/lib/python3.10/site-packages/wandb/sdk/lib/asyncio_manager.py", line 181, in fn_wrap_exceptions
+    await fn()
+  File "/zhome/0e/9/205681/miniconda3/envs/ALenv/lib/python3.10/site-packages/wandb/sdk/lib/service/service_client.py", line 65, in _send_server_request
+    await self._writer.drain()
+  File "/zhome/0e/9/205681/miniconda3/envs/ALenv/lib/python3.10/asyncio/streams.py", line 359, in drain
+    raise exc
+  File "/zhome/0e/9/205681/miniconda3/envs/ALenv/lib/python3.10/asyncio/selector_events.py", line 924, in write
+    n = self._sock.send(data)
+BrokenPipeError: [Errno 32] Broken pipe

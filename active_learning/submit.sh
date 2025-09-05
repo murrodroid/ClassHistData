@@ -2,10 +2,10 @@
 
 # ---------------- LSF directives ----------------
 #BSUB -q gpua100                       # queue/partition (check if a GPU queue is required)
-#BSUB -W 02:00                      # wall-time hh:mm
+#BSUB -W 04:00                      # wall-time hh:mm
 #BSUB -n 4                         # CPU cores
 #BSUB -R "span[hosts=1]"           # keep all cores on one node
-#BSUB -R "select[gpu80gb]"
+# #BSUB -R "select[gpu80gb]"
 #BSUB -R "rusage[mem=8GB]"         # 4 GB RAM per core  → 16 GB total
 #BSUB -gpu "num=1:mode=exclusive_process"   # ← *add* if you need one A100
 #BSUB -u s234805@dtu.dk            # where e-mails go

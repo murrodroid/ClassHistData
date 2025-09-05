@@ -13,6 +13,7 @@ import matplotlib.pyplot as plt
 from tqdm.auto import tqdm
 import numpy as np 
 import json
+import random
 
 try:
     from torch.cuda.amp import autocast as _autocast_cuda, GradScaler as _GradScaler
@@ -20,6 +21,31 @@ try:
 except Exception:
     from torch.amp import autocast as _autocast_generic, GradScaler as _GradScaler
     def _amp_autocast(enabled): return _autocast_generic(device_type='cuda', enabled=enabled)
+
+
+try:
+    import wandb
+    _WANDB_OK = True
+except Exception:
+    wandb = None
+    _WANDB_OK = False
+
+def _wb_start(cfg=config, run_name=None):
+    mode = cfg.get('wandb_mode', 'disabled')
+    if not _WANDB_OK or mode == 'disabled':
+        return None
+    if mode == 'offline':
+        os.environ['WANDB_MODE'] = 'offline'
+    kw = dict(project=cfg.get('wandb_project', 'active-learning'),
+              config=cfg,
+              name=run_name or cfg.get('wandb_run_name'))
+    ent = cfg.get('wandb_entity')
+    if ent: kw['entity'] = ent
+    return wandb.init(**kw)
+
+def _wb_log(run, data, step=None):
+    if run is not None:
+        run.log(data, step=step)
 
 
 def _assert_idx_invariants(di):
@@ -60,6 +86,7 @@ def train_model(data_idx, network=net, config=config, verbose=False):
     scaler = _GradScaler(enabled=use_amp)
 
     for e in range(epochs):
+		
         model.train()
         loop = tqdm(train_loader, desc=f'epoch {e+1}/{epochs}', leave=False) if verbose else train_loader
         for xb, yb in loop:
@@ -83,32 +110,40 @@ def train_committee(data_idx,network=net,config=config):
 def test_models(models, data_idx, config=config, k=None, return_both=True, fixed_test_idx=None):
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     X, y, _ = get_features()
-    if fixed_test_idx is None:
-        _, test_loader, _ = make_loaders(X, y, data_idx, config=config)
+
+    if fixed_test_idx is not None:
+        test_loader = _fixed_test_loader(X, y, fixed_test_idx, config)
     else:
-        test_loader = _fixed_test_loader(X, y, fixed_test_idx, config.get('batch_size'))
+        _, test_loader, _ = make_loaders(X, y, data_idx, config=config)
+
     K = int(k if k is not None else config.get('top_k', 1))
 
     def acc_pair(m):
         m.eval()
-        c1 = ck = tot = 0
+        correct1 = correctk = total = 0
         with torch.no_grad():
             for xb, yb in test_loader:
                 xb, yb = xb.to(device).float(), yb.to(device)
                 logits = m(xb)
-                kk = max(1, min(K, logits.shape[1]))
+                c = logits.shape[1]
+                kk = max(1, min(K, c))
                 top1 = logits.argmax(1)
                 topk = logits.topk(kk, dim=1).indices
-                c1 += (top1 == yb).sum().item()
-                ck += topk.eq(yb.view(-1, 1)).any(dim=1).sum().item()
-                tot += yb.numel()
-        return (c1/tot if tot else 0.0, ck/tot if tot else 0.0)
+                correct1 += (top1 == yb).sum().item()
+                correctk += topk.eq(yb.view(-1, 1)).any(dim=1).sum().item()
+                total += yb.numel()
+        return ((correct1 / total) if total else 0.0,
+                (correctk / total) if total else 0.0)
 
     if isinstance(models, (list, tuple)):
         pairs = [acc_pair(m) for m in models]
-        return {'top1': tuple(p[0] for p in pairs), 'topk': tuple(p[1] for p in pairs), 'k': K}
-    a1, ak = acc_pair(models)
-    return {'top1': (a1,), 'topk': (ak,), 'k': K}
+        res = {'top1': tuple(p[0] for p in pairs), 'topk': tuple(p[1] for p in pairs), 'k': K}
+    else:
+        a1, ak = acc_pair(models)
+        res = {'top1': (a1,), 'topk': (ak,), 'k': K}
+
+    return res if return_both else res['topk']
+
 
 def train_passive(data_idx, ordered=False, verbose=False, budget=None, committee=False, config=config, fixed_test_idx=None):
     accs, labels_hist, added_labels = [], [], []
@@ -167,16 +202,22 @@ def train(verbose=False, save_csv=True, csv_path=None, display_figures=False, co
     base_random  = make_initial_data_idx(ordered=False, cfg=config, stratify=False)
     base_ordered = make_initial_data_idx(ordered=True,  cfg=config, stratify=False)
 
-    budget = min(config['rounds']*config['query_batch_size'],
-                 len(base_random['unlabeled']),
-                 len(base_ordered['unlabeled']))
+    run = _wb_start(config, run_name=f"AL_{time.strftime('%Y%m%d_%H%M%S')}")
+    global_step = 0
+
+    budget = min(
+        config['rounds'] * config['query_batch_size'],
+        len(base_random['unlabeled']),
+        len(base_ordered['unlabeled'])
+    )
 
     results = []
     for m in methods:
-        base = base_random if m in ('passive_random','active_random') else base_ordered
+		print(f'starting training with method: {m}')
+        base = base_random if m in ('passive_random', 'active_random') else base_ordered
         fixed_test_idx = tuple(base['test'])
         di = dict(labeled=list(base['labeled']), unlabeled=list(base['unlabeled']), test=list(base['test']))
-
+		
         if m.startswith('passive_'):
             accs, labels_hist, added_lists = train_passive(
                 di,
@@ -199,21 +240,41 @@ def train(verbose=False, save_csv=True, csv_path=None, display_figures=False, co
             continue
 
         for i, a in enumerate(accs):
-            results.append({
+            top1_tuple = tuple(float(x) for x in a['top1'])
+            topk_tuple = tuple(float(x) for x in a['topk'])
+            pool_size = len(base['labeled']) + len(base['unlabeled'])
+            mean1 = float(np.mean(top1_tuple)) if top1_tuple else 0.0
+            meank = float(np.mean(topk_tuple)) if topk_tuple else 0.0
+            std1 = float(np.std(top1_tuple)) if len(top1_tuple) > 1 else 0.0
+            stdk = float(np.std(topk_tuple)) if len(topk_tuple) > 1 else 0.0
+            row = {
                 'method': m,
-                'round': i+1,
+                'round': i + 1,
                 'labels': labels_hist[i],
-                'pool_size': len(base['labeled']) + len(base['unlabeled']),
-                'pct': 100.0 * labels_hist[i] / (len(base['labeled']) + len(base['unlabeled'])),
-                'avg_acc_top1': float(np.mean(accs[i]['top1'])),
-                'avg_acc_topk': float(np.mean(accs[i]['topk'])),
-                'acc_tuple_top1': json.dumps(tuple(map(float, accs[i]['top1']))),
-                'acc_tuple_topk': json.dumps(tuple(map(float, accs[i]['topk']))),
-                'top_k': int(accs[i]['k']),
+                'pool_size': pool_size,
+                'pct': 100.0 * labels_hist[i] / pool_size,
+                'avg_acc_top1': mean1,
+                'avg_acc_topk': meank,
+                'acc_tuple_top1': json.dumps(top1_tuple),
+                'acc_tuple_topk': json.dumps(topk_tuple),
+                'top_k': int(a['k']),
                 'added_labels': json.dumps(added_lists[i]),
-            })
+            }
+            results.append(row)
+            _wb_log(run, {
+                'method': m,
+                'round': row['round'],
+                'labels': row['labels'],
+                'pct': row['pct'],
+                'acc/top1_mean': mean1,
+                'acc/top1_std': std1,
+                'acc/topk_mean': meank,
+                'acc/topk_std': stdk,
+                'top_k': row['top_k'],
+                'committee_size': len(top1_tuple),
+            }, step=global_step)
+            global_step += 1
 
-                    
         if display_figures:
             xs = list(range(1, len(accs) + 1))
             ys = [float(np.mean(a['topk'])) for a in accs]
@@ -237,7 +298,6 @@ def train(verbose=False, save_csv=True, csv_path=None, display_figures=False, co
     if save_csv and not df_res.empty:
         ts = time.strftime('%Y%m%d_%H%M%S')
         out_dir = Path(config.get('results_dir', 'results')); out_dir.mkdir(parents=True, exist_ok=True)
-        
         tag = (
             f'hash{config.get("hash_dim", 1<<16)}'
             f'_lr{config.get("lr")}'
@@ -246,7 +306,6 @@ def train(verbose=False, save_csv=True, csv_path=None, display_figures=False, co
             f'_k{config.get("query_batch_size")}'
             f'_topk{config.get("top_k", 1)}'
         )
-
         if any(m.startswith('active_') for m in methods):
             tag += f'_comm{config.get("committee_size")}'
         if config.get('passive_committee', False) and any(m.startswith('passive_') for m in methods):
@@ -254,7 +313,11 @@ def train(verbose=False, save_csv=True, csv_path=None, display_figures=False, co
         tag += f'_budget{budget}_seed{config.get("seed")}'
         path = Path(csv_path) if csv_path else out_dir / f'al_results_{tag}_{ts}.csv'
         df_res.to_csv(path, index=False)
-        if verbose: print(f'Saved: {path}')
+        if verbose:
+            print(f'Saved: {path}')
+
+    if run is not None:
+        run.finish()
 
     return df_res
 

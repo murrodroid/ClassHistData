@@ -1,0 +1,40 @@
+{
+  "os": "Linux-6.1.149-1.el9.elrepo.x86_64-x86_64-with-glibc2.34",
+  "python": "CPython 3.10.18",
+  "startedAt": "2025-09-05T12:34:16.660896Z",
+  "program": "/zhome/0e/9/205681/ClassHistData/active_learning/train.py",
+  "codePath": "active_learning/train.py",
+  "codePathLocal": "train.py",
+  "git": {
+    "remote": "https://github.com/murrodroid/ClassHistData",
+    "commit": "4f39e2cab40b605799db05c881a0e0f1dd67d6b0"
+  },
+  "email": "lucas37c@gmail.com",
+  "root": "/zhome/0e/9/205681/ClassHistData/active_learning",
+  "host": "n-62-12-20",
+  "executable": "/zhome/0e/9/205681/miniconda3/envs/ALenv/bin/python",
+  "cpu_count": 32,
+  "cpu_count_logical": 32,
+  "gpu": "NVIDIA A100-PCIE-40GB",
+  "gpu_count": 1,
+  "disk": {
+    "/": {
+      "total": "76817485824",
+      "used": "7085326336"
+    }
+  },
+  "memory": {
+    "total": "810713300992"
+  },
+  "gpu_nvidia": [
+    {
+      "name": "NVIDIA A100-PCIE-40GB",
+      "memoryTotal": "42949672960",
+      "cudaCores": 6912,
+      "architecture": "Ampere",
+      "uuid": "GPU-5fd5fcd4-7591-94b4-09c2-b88a5db9876a"
+    }
+  ],
+  "cudaVersion": "13.0",
+  "writerId": "0llu3vk1la2mewh0vofdzujsfcvjk94a"
+}
