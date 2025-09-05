@@ -15,9 +15,9 @@ config = dict(
     seed = 333,
     # active learning
     passive_committee = True,
-    rounds = 400,
+    rounds = 200,
     committee_size = 5,
-    query_batch_size = 3,
+    query_batch_size = 4,
     # training hyper-parameters
     epochs = 16,
     batch_size = 8192,

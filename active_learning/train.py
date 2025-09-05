@@ -161,6 +161,11 @@ def train_passive(data_idx, ordered=False, verbose=False, budget=None, committee
         else:
             model = train_model(data_idx=data_idx, config=config)
             acc = test_models(models=model, data_idx=data_idx, config=config, return_both=True, fixed_test_idx=fixed_test_idx)
+        print(f"[train_passive] Round {len(accs)}/{R} | "
+        f"labeled={len(data_idx['labeled'])} | "
+        f"unlabeled={len(data_idx['unlabeled'])} | "
+        f"top-1={np.mean(acc['top1']):.4f} | "
+        f"top-{acc['k']}={np.mean(acc['topk']):.4f}")
 
         accs.append(acc)
         labels_hist.append(len(data_idx['labeled']))
@@ -185,7 +190,11 @@ def train_active(data_idx, verbose=False, budget=None, ordered=False, config=con
         added_labels.append(y[prev_selected].tolist())
         committee = train_committee(data_idx=data_idx, config=config)
         acc = test_models(models=committee, data_idx=data_idx, config=config, return_both=True, fixed_test_idx=fixed_test_idx)
-
+        print(f"[train_active] Round {len(accs)}/{R} | "
+        f"labeled={len(data_idx['labeled'])} | "
+        f"unlabeled={len(data_idx['unlabeled'])} | "
+        f"top-1={np.mean(acc['top1']):.4f} | "
+        f"top-{acc['k']}={np.mean(acc['topk']):.4f}")
         accs.append(acc)
         labels_hist.append(len(data_idx['labeled']))
 
@@ -213,7 +222,7 @@ def train(verbose=False, save_csv=True, csv_path=None, display_figures=False, co
 
     results = []
     for m in methods:
-		print(f'starting training with method: {m}')
+        print(f'starting training with method: {m}')
         base = base_random if m in ('passive_random', 'active_random') else base_ordered
         fixed_test_idx = tuple(base['test'])
         di = dict(labeled=list(base['labeled']), unlabeled=list(base['unlabeled']), test=list(base['test']))
