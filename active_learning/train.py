@@ -161,6 +161,9 @@ def train_passive(data_idx, ordered=False, verbose=False, budget=None, committee
         else:
             model = train_model(data_idx=data_idx, config=config)
             acc = test_models(models=model, data_idx=data_idx, config=config, return_both=True, fixed_test_idx=fixed_test_idx)
+        
+        del models
+        torch.cuda.empty_cache()
         print(f"[train_passive] Round {len(accs)}/{R} | "
         f"labeled={len(data_idx['labeled'])} | "
         f"unlabeled={len(data_idx['unlabeled'])} | "
@@ -190,6 +193,10 @@ def train_active(data_idx, verbose=False, budget=None, ordered=False, config=con
         added_labels.append(y[prev_selected].tolist())
         committee = train_committee(data_idx=data_idx, config=config)
         acc = test_models(models=committee, data_idx=data_idx, config=config, return_both=True, fixed_test_idx=fixed_test_idx)
+
+        del models
+        torch.cuda.empty_cache()
+        
         print(f"[train_active] Round {len(accs)}/{R} | "
         f"labeled={len(data_idx['labeled'])} | "
         f"unlabeled={len(data_idx['unlabeled'])} | "

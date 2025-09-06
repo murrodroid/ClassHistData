@@ -1,7 +1,7 @@
 config = dict(
     # gen. info
     learning_types = ['passive_random','passive_ordered','active_random','active_ordered'], 
-    labeled_size = 0.05,
+    labeled_size = 0.03,
     test_size = 0.2,
     token_types = [
         {'method': 'char', 'ngram': 3},
@@ -15,12 +15,12 @@ config = dict(
     seed = 333,
     # active learning
     passive_committee = True,
-    rounds = 200,
+    rounds = 300,
     committee_size = 5,
-    query_batch_size = 4,
-    # training hyper-parameters
+    query_batch_size = 3,
+    # training hyper-parameters<
     epochs = 16,
-    batch_size = 8192,
+    batch_size = 1024,
     dropout_rate = 0.5,
     lr = 1.3005e-3,
     weight_decay = 1e-5,
@@ -30,7 +30,7 @@ config = dict(
     input_log1p = True,
     # perf knobs
     mixed_precision = True,
-    dataloader_workers = 4, 
+    dataloader_workers = 0, 
     pin_memory = True,
     prefetch_factor = 2,
     # wandb integration
