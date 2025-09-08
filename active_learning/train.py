@@ -14,6 +14,7 @@ from tqdm.auto import tqdm
 import numpy as np 
 import json
 import random
+import os
 
 try:
     from torch.cuda.amp import autocast as _autocast_cuda, GradScaler as _GradScaler
@@ -47,7 +48,6 @@ def _wb_log(run, data, step=None):
     if run is not None:
         run.log(data, step=step)
 
-
 def _assert_idx_invariants(di):
     X, _, _ = get_features()
     a, b, c = set(di['labeled']), set(di['unlabeled']), set(di['test'])
@@ -57,10 +57,8 @@ def _assert_idx_invariants(di):
 def train_model(data_idx, network=net, config=config, verbose=False):
     set_seed(config.get('seed', 42))
     torch.backends.cudnn.benchmark = True
-    try:
-        torch.set_float32_matmul_precision('high')
-    except Exception:
-        pass
+    try: torch.set_float32_matmul_precision('high')
+    except Exception: pass
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     X, y, classes = get_features()
@@ -79,14 +77,47 @@ def train_model(data_idx, network=net, config=config, verbose=False):
     ).to(device)
 
     opt = torch.optim.Adam(model.parameters(), lr=config.get('lr'), weight_decay=config.get('weight_decay'))
-    loss_fn = nn.CrossEntropyLoss()
-    epochs = config.get('epochs')
+
+    if hasattr(y, 'iloc'):
+        labs = np.asarray(y.iloc[data_idx['labeled']], dtype=int)
+    else:
+        labs = np.asarray(y[data_idx['labeled']], dtype=int)
+    if bool(config.get('use_class_weights', True)):
+        cnt = np.bincount(labs, minlength=len(classes)).astype(np.float32)
+        w = 1.0 / (cnt + 1e-12)
+        w = w / w.mean()
+        weight = torch.tensor(w, device=device)
+    else:
+        weight = None
+    loss_fn = nn.CrossEntropyLoss(weight=weight)
 
     use_amp = bool(config.get('mixed_precision', False)) and device.type == 'cuda'
     scaler = _GradScaler(enabled=use_amp)
 
+    budget = config.get('train_budget_batches', None)
+    if budget is not None:
+        it = iter(train_loader)
+        for _ in range(int(budget)):
+            try:
+                xb, yb = next(it)
+            except StopIteration:
+                it = iter(train_loader)
+                xb, yb = next(it)
+            xb, yb = xb.to(device).float(), yb.to(device)
+            opt.zero_grad(set_to_none=True)
+            with torch.cuda.amp.autocast(enabled=use_amp):
+                logits = model(xb)
+                loss = loss_fn(logits, yb)
+            scaler.scale(loss).backward()
+            if config.get('grad_clip_norm', None):
+                scaler.unscale_(opt)
+                torch.nn.utils.clip_grad_norm_(model.parameters(), float(config['grad_clip_norm']))
+            scaler.step(opt)
+            scaler.update()
+        return model
+
+    epochs = config.get('epochs')
     for e in range(epochs):
-		
         model.train()
         loop = tqdm(train_loader, desc=f'epoch {e+1}/{epochs}', leave=False) if verbose else train_loader
         for xb, yb in loop:
@@ -96,16 +127,17 @@ def train_model(data_idx, network=net, config=config, verbose=False):
                 logits = model(xb)
                 loss = loss_fn(logits, yb)
             scaler.scale(loss).backward()
+            if config.get('grad_clip_norm', None):
+                scaler.unscale_(opt)
+                torch.nn.utils.clip_grad_norm_(model.parameters(), float(config['grad_clip_norm']))
             scaler.step(opt)
             scaler.update()
-
     return model
 
 def train_committee(data_idx,network=net,config=config):
     base_seed = config.get('seed', 42)
     k = config.get('committee_size')
     return [train_model(data_idx, network, {**config, 'seed': base_seed + i}) for i in range(k)]
-
 
 def test_models(models, data_idx, config=config, k=None, return_both=True, fixed_test_idx=None):
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -162,8 +194,11 @@ def train_passive(data_idx, ordered=False, verbose=False, budget=None, committee
             model = train_model(data_idx=data_idx, config=config)
             acc = test_models(models=model, data_idx=data_idx, config=config, return_both=True, fixed_test_idx=fixed_test_idx)
         
-        del models
+        trained = models if committee else model
+
+        del trained
         torch.cuda.empty_cache()
+
         print(f"[train_passive] Round {len(accs)}/{R} | "
         f"labeled={len(data_idx['labeled'])} | "
         f"unlabeled={len(data_idx['unlabeled'])} | "
@@ -193,9 +228,6 @@ def train_active(data_idx, verbose=False, budget=None, ordered=False, config=con
         added_labels.append(y[prev_selected].tolist())
         committee = train_committee(data_idx=data_idx, config=config)
         acc = test_models(models=committee, data_idx=data_idx, config=config, return_both=True, fixed_test_idx=fixed_test_idx)
-
-        del models
-        torch.cuda.empty_cache()
         
         print(f"[train_active] Round {len(accs)}/{R} | "
         f"labeled={len(data_idx['labeled'])} | "
@@ -210,6 +242,9 @@ def train_active(data_idx, verbose=False, budget=None, ordered=False, config=con
         data_idx = update_indexes(data_idx, selected)
         prev_selected = np.array(selected, dtype=int)
         acquired += len(selected)
+
+        del committee
+        torch.cuda.empty_cache()
 
     return accs, labels_hist, added_labels
 
