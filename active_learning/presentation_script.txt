@@ -1,0 +1,70 @@
+1.
+
+Cause of death datasets have become available recently, which is nice
+
+Coding cause of death by hand takes a lot of time and nearly impossible to code a full dataset
+
+Machine learning (might) be a great help here, to classify some of the dataset and use for training to classify the rest!
+
+
+
+
+2.
+
+550.000 individuals in the dataset, 16.000 unique death causes
+
+76% have been hand-coded, which covers around 30% of the individual cases.
+
+To study how model precisions evolve, we created a subset using only classified causes of death, simulating a 100% classified dataset
+
+Accurate prediction is the model hitting ICD10h *block*
+
+
+We want to study: how effective a model can you get from x amount of work
+
+
+
+
+3.
+
+The way you select cause-of-deaths to classify matters.
+
+Two main ways of doing it:
+1. top-down, ordering by most to least frequent, and classifying from the top.
+2. randomly selecting from the dataset
+
+Look at the figure, 
+x-axis is % of dataset
+y-axis is model accuracy (on a test-set)
+
+Random selection is better
+
+
+
+
+4. 
+There’s a third option for selecting how you classify causes of death: active learning, machine learning technique
+
+The method allows you to be part of the training process, getting feedback from the model along the way
+
+
+Initially, you have a classified set (either top-down or randomly). Here 10%.
+
+Here, model tells you which unclassified causes of death it’s most uncertain about
+
+These are the causes which you must classify, as the model gains most from them
+
+Then you add them to the classified dataset and train a new model using this – model gives uncertainty, and this loop continues.
+
+
+
+
+5.
+
+Random selection > top down
+
+Active learning outperforms passive learning, but both will eventually converge
+
+Active learning > random selection
+
+Detailed datasets that provide context is great for machine learning
